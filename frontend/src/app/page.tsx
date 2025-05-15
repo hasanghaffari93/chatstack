@@ -23,7 +23,22 @@ export default function Home() {
     scrollToBottom();
   }, [messages]);
 
-  const handleClearChat = () => {
+  const handleClearChat = async () => {
+    try {
+      if (conversationId) {
+        await fetch("http://localhost:8000/api/chat", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            conversation_id: conversationId,
+          }),
+        });
+      }
+    } catch (error) {
+      console.error("Error clearing chat:", error);
+    }
     setMessages([]);
     setConversationId(null);
   };

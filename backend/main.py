@@ -33,6 +33,9 @@ class ChatMessage(BaseModel):
     content: str
     conversation_id: str | None = None
 
+class ConversationId(BaseModel):
+    conversation_id: str | None = None
+
 def cleanup_old_conversations():
     current_time = datetime.now()
     expired_ids = [
@@ -42,6 +45,14 @@ def cleanup_old_conversations():
     for conv_id in expired_ids:
         conversations.pop(conv_id, None)
         conversation_timestamps.pop(conv_id, None)
+
+@app.delete("/api/chat")
+async def clear_conversation(conv: ConversationId):
+    conv_id = conv.conversation_id or "default"
+    if conv_id in conversations:
+        conversations.pop(conv_id)
+        conversation_timestamps.pop(conv_id, None)
+    return {"status": "success"}
 
 @app.post("/api/chat")
 async def chat(message: ChatMessage):

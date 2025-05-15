@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useRef, useEffect } from "react";
 import Loading from "./components/Loading";
 
@@ -11,6 +12,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -20,6 +22,11 @@ export default function Home() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const handleClearChat = () => {
+    setMessages([]);
+    setConversationId(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +43,10 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content: userMessage }),
+        body: JSON.stringify({
+          content: userMessage,
+          conversation_id: conversationId,
+        }),
       });
 
       if (!response.ok) {
@@ -45,6 +55,7 @@ export default function Home() {
       }
 
       const data = await response.json();
+      setConversationId(data.conversation_id);
       setMessages((prev) => [
         ...prev,
         { content: data.response, isUser: false },
@@ -66,8 +77,14 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-4 bg-gray-100">
       <div className="w-full max-w-4xl bg-white rounded-lg shadow-xl overflow-hidden flex flex-col h-[90vh]">
-        <div className="bg-blue-600 p-4">
-          <h1 className="text-2xl font-bold text-white">ChatBot</h1>
+        <div className="bg-blue-600 p-4 flex justify-between items-center">
+          <h1 className="text-white text-xl font-bold">ChatStack</h1>
+          <button
+            onClick={handleClearChat}
+            className="px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            Clear Chat
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -79,19 +96,19 @@ export default function Home() {
               }`}
             >
               <div
-                className={`max-w-[80%] px-4 py-2 rounded-lg ${
+                className={`max-w-[80%] p-3 rounded-lg ${
                   message.isUser
                     ? "bg-blue-600 text-white"
-                    : "bg-gray-200 text-gray-800"
+                    : "bg-gray-100 text-gray-800"
                 }`}
               >
-                {message.content}
+                <p className="whitespace-pre-wrap">{message.content}</p>
               </div>
             </div>
           ))}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg flex items-center">
+              <div className="bg-gray-100 p-3 rounded-lg">
                 <Loading />
               </div>
             </div>
@@ -105,14 +122,14 @@ export default function Home() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Type your message..."
+              className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isLoading}
             />
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
               disabled={isLoading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             >
               Send
             </button>

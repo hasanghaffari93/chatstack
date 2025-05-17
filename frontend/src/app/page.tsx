@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import Loading from "./components/Loading";
 import ChatSidebar from "./components/ChatSidebar";
 import { Message, Conversation } from "./types/chat";
+import CodeBlock from "./components/CodeBlock";
+import ReactMarkdown from "react-markdown";
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -92,8 +94,6 @@ export default function Home() {
     }
   };
 
-
-
   const handleSelectConversation = async (id: string) => {
     const conversation = conversations.find((c) => c.id === id);
     if (!conversation) return;
@@ -155,7 +155,7 @@ export default function Home() {
             {messages.map((message, index) => (
               <div
                 key={index}
-                className={`flex items-start ${message.isUser ? "justify-end" : "justify-start"} px-4`}
+                className={`flex items-start ${message.isUser ? "justify-end" : "justify-start"} px-4 mb-2`}
               >
                 {!message.isUser && (
                   <div className="flex-shrink-0 mr-3">
@@ -165,12 +165,23 @@ export default function Home() {
                   </div>
                 )}
                 <div
-                  className={`max-w-[85%] p-4 rounded-2xl ${message.isUser
-                    ? "bg-[var(--user-message-bg)] text-[var(--foreground)]"
-                    : "bg-[var(--bot-message-bg)] text-[var(--foreground)] border border-[var(--input-border)]"
+                  className={`max-w-[85%] p-4 ${message.isUser
+                    ? "bg-white text-gray-900 rounded-full shadow-sm"
+                    : "bg-transparent text-gray-900"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                  <ReactMarkdown
+                    components={{
+                      code: ({inline, className, children, ...props}: React.HTMLAttributes<HTMLElement> & {inline?: boolean; children?: React.ReactNode; node?: any}) => {
+                        return inline
+                          ? <code className={className}>{children}</code>
+                          : <CodeBlock className={className}>{children}</CodeBlock>;
+                      },
+                      p: ({ node, ...props }) => <p {...props} className="whitespace-pre-wrap text-sm" />
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
                 </div>
                 {message.isUser && (
                   <div className="flex-shrink-0 ml-3">

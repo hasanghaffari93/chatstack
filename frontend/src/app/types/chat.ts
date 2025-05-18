@@ -4,6 +4,13 @@ export interface Message {
   timestamp?: string;
 }
 
+export interface ConversationMetadata {
+  id: string;
+  title: string;
+  created_at: string;
+  timestamp: string;
+}
+
 export interface Conversation {
   id: string;
   title: string;

@@ -3,6 +3,7 @@
  * Re-exports all hooks for cleaner imports
  */
 
-export * from './useChat';
-export * from './useErrorHandler';
-export * from './useChatUI';
+export { useChat } from './useChat';
+export { useErrorHandler } from './useErrorHandler';
+export { useChatUI } from './useChatUI';
+export { ChatProvider } from './ChatContext';

@@ -18,7 +18,7 @@ export default function Home() {
     messages,
     isLoading,
     conversationId,
-    conversations,
+    conversationMetadata,
     error,
     handleSendMessage,
     handleNewChat,
@@ -34,7 +34,7 @@ export default function Home() {
     <main className="flex min-h-screen bg-[var(--background)]">
       {isSidebarOpen && (
         <ChatSidebar
-          conversations={conversations}
+          conversations={conversationMetadata}
           activeConversationId={conversationId}
           onSelectConversation={handleSelectConversation}
           onNewChat={handleNewChat}

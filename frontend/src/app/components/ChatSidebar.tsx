@@ -1,7 +1,7 @@
-import { Conversation } from '../types/chat';
+import { ConversationMetadata } from '../types/chat';
 
 interface ChatSidebarProps {
-  conversations: Conversation[];
+  conversations: ConversationMetadata[];
   activeConversationId: string | null;
   onSelectConversation: (conversationId: string) => void;
   onNewChat: () => void;
@@ -39,7 +39,7 @@ export default function ChatSidebar({
             >
               <div className="font-medium truncate">{conversation.title}</div>
               <div className="text-xs opacity-60 truncate mt-1">
-                {new Date(conversation.created_at).toLocaleTimeString(undefined, {
+                {new Date(conversation.timestamp).toLocaleTimeString(undefined, {
                   hour: '2-digit',
                   minute: '2-digit'
                 })}

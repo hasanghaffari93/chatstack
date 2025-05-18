@@ -41,6 +41,46 @@ def cleanup_old_conversations():
             conversation_created_at.pop(conv_id, None)
 
 
+@router.get("/conversations/metadata")
+async def get_conversation_metadata():
+    """Returns only metadata about conversations, not the messages"""
+    cleanup_old_conversations()
+    sorted_conversations = sorted(
+        [
+            (conv_id, conversation_created_at[conv_id], conversation_timestamps[conv_id])
+            for conv_id in conversations.keys()
+        ],
+        key=lambda x: x[2],  # Sort by last update timestamp
+        reverse=True
+    )
+    return {
+        "conversations": [
+            {
+                "id": conv_id,
+                "title": conversation_metadata.get(conv_id, {}).get("title", "New Chat"),
+                "created_at": created_at.isoformat(),
+                "timestamp": last_update.isoformat(),
+            }
+            for conv_id, created_at, last_update in sorted_conversations
+        ]
+    }
+
+@router.get("/conversations/{conversation_id}")
+async def get_conversation_by_id(conversation_id: str):
+    """Returns a specific conversation by ID including its messages"""
+    if conversation_id not in conversations:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    return {
+        "conversation": {
+            "id": conversation_id,
+            "title": conversation_metadata.get(conversation_id, {}).get("title", "New Chat"),
+            "created_at": conversation_created_at[conversation_id].isoformat(),
+            "timestamp": conversation_timestamps[conversation_id].isoformat(),
+            "messages": conversations[conversation_id]
+        }
+    }
+
 @router.get("/conversations")
 async def get_conversations():
     cleanup_old_conversations()

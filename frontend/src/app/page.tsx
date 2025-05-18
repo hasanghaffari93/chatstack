@@ -6,6 +6,7 @@ import MessageList from "./components/MessageList";
 import ErrorMessage from "./components/ErrorMessage";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import ProtectedRoute from "./components/ProtectedRoute";
 import { useChat, useChatUI } from "../hooks";
 
 
@@ -31,34 +32,36 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-screen bg-[var(--background)]">
-      {isSidebarOpen && (
-        <ChatSidebar
-          conversations={conversationMetadata}
-          activeConversationId={conversationId}
-          onSelectConversation={handleSelectConversation}
-          onNewChat={handleNewChat}
-        />
-      )}
-      
-      <div className="flex-1 flex flex-col">
-        <div className="w-full bg-[var(--chat-bg)] overflow-hidden flex flex-col h-screen">
-          <Header 
-            isSidebarOpen={isSidebarOpen} 
-            onToggleSidebar={toggleSidebar} 
+    <ProtectedRoute>
+      <main className="flex min-h-screen bg-[var(--background)]">
+        {isSidebarOpen && (
+          <ChatSidebar
+            conversations={conversationMetadata}
+            activeConversationId={conversationId}
+            onSelectConversation={handleSelectConversation}
+            onNewChat={handleNewChat}
           />
+        )}
+        
+        <div className="flex-1 flex flex-col">
+          <div className="w-full bg-[var(--chat-bg)] overflow-hidden flex flex-col h-screen">
+            <Header 
+              isSidebarOpen={isSidebarOpen} 
+              onToggleSidebar={toggleSidebar} 
+            />
 
-          {error && <div className="px-4 md:px-8 lg:px-16 xl:px-32 pt-4">
-             <ErrorMessage message={error} />
-           </div>}
-           <MessageList messages={messages} isLoading={isLoading} />
+            {error && <div className="px-4 md:px-8 lg:px-16 xl:px-32 pt-4">
+               <ErrorMessage message={error} />
+             </div>}
+             <MessageList messages={messages} isLoading={isLoading} />
 
-          <div className="px-4 md:px-8 lg:px-16 xl:px-32 pb-4 pt-2">
-            <ChatInput onSendMessage={onSendMessage} isLoading={isLoading} />
-            <Footer />
+            <div className="px-4 md:px-8 lg:px-16 xl:px-32 pb-4 pt-2">
+              <ChatInput onSendMessage={onSendMessage} isLoading={isLoading} />
+              <Footer />
+            </div>
           </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </ProtectedRoute>
   );
 }

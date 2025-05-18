@@ -56,7 +56,7 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
           }}
           onKeyDown={handleKeyDown}
           placeholder="Message ChatStack..."
-          className="w-full p-3 pr-12 bg-transparent focus:outline-none text-[var(--foreground)] placeholder-opacity-60 resize-none min-h-[44px] max-h-[200px] overflow-y-hidden"
+          className="w-full p-3 pr-12 bg-transparent focus:outline-none text-[var(--foreground)] placeholder-opacity-60 resize-none min-h-[44px] max-h-[200px] overflow-y-hidden text-sm"
           disabled={isLoading}
           rows={1}
           style={{

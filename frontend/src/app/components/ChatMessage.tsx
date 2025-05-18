@@ -18,7 +18,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
     >
       <div
         className={`p-4 ${message.isUser
-          ? "bg-gray-100 text-gray-900 rounded-full shadow-sm"
+          ? "bg-gray-100 text-gray-900 rounded-2xl shadow-sm"
           : "bg-transparent text-gray-900"
         }`}
       >

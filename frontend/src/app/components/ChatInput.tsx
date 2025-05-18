@@ -35,6 +35,13 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
 
     onSendMessage(input);
     setInput('');
+    
+    // Reset textarea height and scroll state
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = '44px';
+      textareaRef.current.scrollTop = 0;
+    }
   };
 
   return (
@@ -49,13 +56,14 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
           }}
           onKeyDown={handleKeyDown}
           placeholder="Message ChatStack..."
-          className="w-full p-3 pr-12 bg-transparent focus:outline-none text-[var(--foreground)] placeholder-opacity-60 resize-none min-h-[44px] max-h-[200px] overflow-y-auto"
+          className="w-full p-3 pr-12 bg-transparent focus:outline-none text-[var(--foreground)] placeholder-opacity-60 resize-none min-h-[44px] max-h-[200px] overflow-y-hidden"
           disabled={isLoading}
           rows={1}
           style={{
-            height: 'auto',
+            height: '44px',
             minHeight: '44px',
             maxHeight: '200px',
+            overflowY: input.length > 0 ? 'auto' : 'hidden'
           }}
         />
         <button

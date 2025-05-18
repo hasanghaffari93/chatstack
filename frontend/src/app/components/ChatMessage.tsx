@@ -16,16 +16,9 @@ export default function ChatMessage({ message }: ChatMessageProps) {
     <div
       className={`flex items-start ${message.isUser ? "justify-end" : "justify-start"} px-4 mb-2`}
     >
-      {!message.isUser && (
-        <div className="flex-shrink-0 mr-3">
-          <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-sm font-medium">
-            AI
-          </div>
-        </div>
-      )}
       <div
-        className={`max-w-[85%] p-4 ${message.isUser
-          ? "bg-white text-gray-900 rounded-full shadow-sm"
+        className={`p-4 ${message.isUser
+          ? "bg-gray-100 text-gray-900 rounded-full shadow-sm"
           : "bg-transparent text-gray-900"
         }`}
       >
@@ -42,13 +35,6 @@ export default function ChatMessage({ message }: ChatMessageProps) {
           {message.content}
         </ReactMarkdown>
       </div>
-      {message.isUser && (
-        <div className="flex-shrink-0 ml-3">
-          <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 text-sm font-medium">
-            You
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
   );
 }

@@ -40,11 +40,7 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
       ))}
       {isLoading && (
         <div className="flex items-start justify-start px-4">
-          <div className="flex-shrink-0 mr-3">
-            <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-sm font-medium">
-              AI
-            </div>
-          </div>
+
           <div className="bg-[var(--bot-message-bg)] border border-[var(--input-border)] p-4 rounded-2xl">
             <Loading />
           </div>

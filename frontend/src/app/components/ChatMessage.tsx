@@ -29,12 +29,12 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                 ? <code className={className}>{children}</code>
                 : <CodeBlock className={className}>{children}</CodeBlock>;
             },
-            p: ({ node, ...props }) => <p {...props} className="whitespace-pre-wrap text-sm" />
+            p: ({ node, ...props }) => <div {...props} className="whitespace-pre-wrap text-sm" />
           }}
         >
           {message.content}
         </ReactMarkdown>
       </div>
-      </div>
+    </div>
   );
 }

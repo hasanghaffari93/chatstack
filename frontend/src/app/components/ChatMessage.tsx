@@ -17,7 +17,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
       className={`flex items-start ${message.isUser ? "justify-end" : "justify-start"} px-4 mb-2`}
     >
       <div
-        className={`p-4 ${message.isUser
+        className={`p-3 ${message.isUser
           ? "bg-gray-100 text-gray-900 rounded-2xl shadow-sm"
           : "bg-transparent text-gray-900"
         }`}

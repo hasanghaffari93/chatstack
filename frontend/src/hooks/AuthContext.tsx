@@ -1,21 +1,22 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 
-interface User {
+type User = {
   id: string;
-  name: string;
   email: string;
-  picture: string;
-}
+  name: string;
+  picture?: string;
+};
 
-interface AuthContextType {
+type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: () => void;
   logout: () => void;
-}
+  refreshToken: () => Promise<boolean>;
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -23,13 +24,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Function to refresh the token
+  const refreshToken = useCallback(async (): Promise<boolean> => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh-token`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      return false;
+    }
+  }, []);
+
+  // Setup token refresh interval
   useEffect(() => {
-    // Check if user is already authenticated
+    if (!user) return;
+
+    // Refresh token every 45 minutes (before the 60-minute expiration)
+    const refreshInterval = setInterval(async () => {
+      const success = await refreshToken();
+      if (!success) {
+        // If refresh fails, log the user out
+        logout();
+      }
+    }, 45 * 60 * 1000);
+
+    return () => clearInterval(refreshInterval);
+  }, [user, refreshToken]);
+
+  useEffect(() => {
+    // Check if user is already authenticated by validating session cookie
     const checkAuth = async () => {
       try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+          method: 'GET',
+          credentials: 'include', // Important: include cookies in the request
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
         }
       } catch (error) {
         console.error('Authentication error:', error);
@@ -43,24 +86,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Google OAuth login
   const login = () => {
-    // Google OAuth parameters
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    // Use a fixed redirect URI that matches what's configured in Google Cloud Console
-    const redirectUri = "http://localhost:3000/login";
-    const scope = 'email profile';
-    
-    // Construct OAuth URL with properly encoded redirect URI for authorization code flow
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline`;
-    
-    console.log('Redirecting to:', authUrl);
-    // Redirect to Google's OAuth page
-    window.location.href = authUrl;
+    // Instead of generating our own state and redirecting directly,
+    // use the backend's /google-login endpoint which handles state generation
+    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google-login`;
   };
 
   // Logout function
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
+  const logout = async () => {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include', // Include cookies
+      });
+      setUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   // Handle OAuth redirect
@@ -69,35 +110,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Get the URL search parameters
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
+      const state = urlParams.get('state');
       
-      if (code) {
+      if (code && state) {
         try {
+          // No need to verify state parameter here anymore as it's handled by the backend
+          console.log('Exchanging code for tokens...');
+          
           // Exchange the code for tokens via our backend
           const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/google-callback`, {
             method: 'POST',
+            credentials: 'include', // Include cookies
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
               code,
+              state,
               redirect_uri: window.location.origin + '/login'
             }),
           });
           
           if (!response.ok) {
-            throw new Error(`Authentication failed: ${response.statusText}`);
+            // Try to get more detailed error information
+            let errorDetail = response.statusText;
+            try {
+              const errorData = await response.json();
+              if (errorData && errorData.detail) {
+                errorDetail = errorData.detail;
+              }
+            } catch (jsonError) {
+              console.error('Error parsing error response:', jsonError);
+            }
+            
+            // Redirect to login page with error message
+            const loginUrl = '/login?error=' + encodeURIComponent(errorDetail);
+            window.location.href = loginUrl;
+            return;
           }
           
           const userData = await response.json();
+          console.log('Authentication successful!');
           
-          // Save user data
+          // Save user data in state (not localStorage)
           setUser(userData);
-          localStorage.setItem('user', JSON.stringify(userData));
           
           // Clean up URL
           window.history.replaceState({}, document.title, window.location.pathname);
         } catch (error) {
           console.error('Error during authentication:', error);
+          // Redirect to login page with error message
+          const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+          const loginUrl = '/login?error=' + encodeURIComponent(errorMessage);
+          window.location.href = loginUrl;
         }
       }
     };
@@ -111,7 +176,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading, 
       isAuthenticated: !!user, 
       login, 
-      logout 
+      logout,
+      refreshToken
     }}>
       {children}
     </AuthContext.Provider>

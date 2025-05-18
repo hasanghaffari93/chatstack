@@ -3,3 +3,7 @@ uvicorn
 python-dotenv
 openai
 requests
+python-jose[cryptography]
+google-auth
+pydantic
+python-multipart

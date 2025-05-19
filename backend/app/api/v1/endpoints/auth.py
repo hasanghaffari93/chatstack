@@ -15,6 +15,17 @@ from google.auth.transport import requests as google_requests
 import asyncio
 from collections import defaultdict
 import pathlib
+from app.core.database import (
+    get_user_by_id,
+    get_user_by_email, 
+    create_or_update_user,
+    save_user_refresh_token,
+    get_user_refresh_token,
+    save_oauth_state,
+    get_oauth_state,
+    delete_oauth_state,
+    clean_expired_oauth_states
+)
 
 # Load environment variables
 load_dotenv()
@@ -112,53 +123,6 @@ async def cleanup_old_entries():
     for ip in to_delete:
         del rate_limit_store[ip]
 
-# State storage functions
-def save_oauth_states():
-    """Save oauth states to a file in development mode"""
-    if os.getenv("ENVIRONMENT") == "production":
-        return
-        
-    # Create a data directory if it doesn't exist
-    data_dir = pathlib.Path(__file__).parent.parent.parent.parent.parent / "data"
-    data_dir.mkdir(exist_ok=True)
-    
-    # Convert timestamps to strings for JSON serialization
-    states_to_save = {}
-    for state, data in oauth_states.items():
-        states_to_save[state] = {"created_at": data["created_at"]}
-    
-    # Save to file
-    with open(data_dir / "oauth_states.json", "w") as f:
-        json.dump(states_to_save, f)
-    
-    print(f"Saved {len(states_to_save)} OAuth states to file")
-
-def load_oauth_states():
-    """Load oauth states from a file in development mode"""
-    if os.getenv("ENVIRONMENT") == "production":
-        return {}
-        
-    # Create a data directory if it doesn't exist
-    data_dir = pathlib.Path(__file__).parent.parent.parent.parent.parent / "data"
-    data_dir.mkdir(exist_ok=True)
-    
-    states_file = data_dir / "oauth_states.json"
-    if not states_file.exists():
-        return {}
-    
-    try:
-        with open(states_file, "r") as f:
-            loaded_states = json.load(f)
-            
-        print(f"Loaded {len(loaded_states)} OAuth states from file")
-        return loaded_states
-    except Exception as e:
-        print(f"Error loading OAuth states: {e}")
-        return {}
-
-# In-memory state storage (should be replaced with Redis in production)
-oauth_states: Dict[str, dict] = load_oauth_states()
-
 @router.get("/google-login")
 async def google_login(response: Response, request: Request, _: bool = Depends(check_rate_limit)):
     """Generate state and redirect to Google OAuth login page"""
@@ -166,10 +130,11 @@ async def google_login(response: Response, request: Request, _: bool = Depends(c
     state = secrets.token_urlsafe(32)
     
     # Store state with creation time (for expiration)
-    oauth_states[state] = {"created_at": time.time()}
+    state_data = {"created_at": time.time()}
+    save_oauth_state(state, state_data)
     
-    # Save states to file in development mode
-    save_oauth_states()
+    # Periodically clean up expired states
+    clean_expired_oauth_states()
     
     # Use the frontend URL from environment variables
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
@@ -196,28 +161,17 @@ async def google_callback(token_request: TokenRequest, response: Response, reque
         # Validate state to prevent CSRF
         state = token_request.state
         print(f"Received state: {state}")
-        print(f"Available states: {list(oauth_states.keys())}")
         
-        if state not in oauth_states:
+        # Get state from database
+        state_data = get_oauth_state(state)
+        if not state_data:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid state parameter",
+                detail="Invalid or expired state parameter",
             )
         
-        # Check if state is expired (10 minutes max)
-        state_created_at = oauth_states[state]["created_at"]
-        if time.time() - state_created_at > 600:  # 10 minutes
-            # Clean up expired state
-            oauth_states.pop(state, None)
-            save_oauth_states()  # Save updated states
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="State parameter expired",
-            )
-            
-        # Clean up used state
-        oauth_states.pop(state, None)
-        save_oauth_states()  # Save updated states
+        # Delete used state from database
+        delete_oauth_state(state)
         
         # Exchange code for tokens
         redirect_uri = token_request.redirect_uri or REDIRECT_URI
@@ -333,7 +287,22 @@ async def google_callback(token_request: TokenRequest, response: Response, reque
             picture=user_data.get("picture")
         )
         
-        # Create a session token
+        # Save user to database
+        user_data_dict = {
+            "id": user_info.id,
+            "email": user_info.email,
+            "name": user_info.name,
+            "picture": user_info.picture,
+        }
+        
+        # Create or update user in the database
+        create_or_update_user(user_data_dict)
+        
+        # If we have a refresh token, store it in the database
+        if refresh_token:
+            save_user_refresh_token(user_info.id, refresh_token)
+        
+        # Create a session token (without the refresh token)
         session_data = {
             "sub": user_info.id,
             "email": user_info.email,
@@ -341,13 +310,6 @@ async def google_callback(token_request: TokenRequest, response: Response, reque
             "picture": user_info.picture,
         }
         
-        # If we have a refresh token, store it securely (not in the JWT)
-        if refresh_token:
-            # In a production app, store this in a secure database
-            # For now, we'll just add it to our session data
-            # This is NOT secure and should be changed in production
-            session_data["refresh_token"] = refresh_token
-            
         session_token = create_access_token(session_data)
         
         # Set the session token as an HttpOnly cookie
@@ -458,7 +420,23 @@ async def get_current_user(user: dict = Depends(get_current_user_from_cookie)):
 @router.post("/refresh-token")
 async def refresh_token(request: Request, response: Response, user: dict = Depends(get_current_user_from_cookie), _: bool = Depends(check_rate_limit)):
     """Refresh the access token using the refresh token"""
-    if not user or "refresh_token" not in user:
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+    
+    # Get user ID from the session
+    user_id = user.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid user session"
+        )
+    
+    # Get refresh token from database
+    refresh_token = get_user_refresh_token(user_id)
+    if not refresh_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="No refresh token available"
@@ -466,7 +444,6 @@ async def refresh_token(request: Request, response: Response, user: dict = Depen
     
     try:
         # Exchange refresh token for a new access token
-        refresh_token = user["refresh_token"]
         token_url = "https://oauth2.googleapis.com/token"
         token_data = {
             "client_id": GOOGLE_CLIENT_ID,

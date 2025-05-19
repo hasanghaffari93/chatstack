@@ -8,14 +8,16 @@ export interface ConversationMetadata {
   id: string;
   title: string;
   created_at: string;
-  timestamp: string;
+  updated_at: string;  // Renamed from timestamp to match backend
+  user_id: string;     // Added user_id field
 }
 
 export interface Conversation {
   id: string;
   title: string;
   created_at: string;
-  timestamp: string;
+  updated_at: string;  // Renamed from timestamp to match backend
+  user_id: string;     // Added user_id field
   messages: Array<{
     role: string;
     content: string;

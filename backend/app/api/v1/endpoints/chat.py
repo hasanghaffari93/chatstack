@@ -1,122 +1,131 @@
 # Endpoints for chat and conversation management
-from fastapi import APIRouter, HTTPException
-from app.schemas.chat import ChatMessage, ConversationId
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import OAuth2PasswordBearer
+from app.schemas.chat import ChatMessage, ConversationId, MessageResponse
 from app.core.config import get_openai_client
-from typing import Dict, List
-from datetime import datetime, timedelta
+from app.repositories.conversation_repository import ConversationRepository
+from typing import Dict, List, Optional
+from datetime import datetime
 import uuid, os
+from app.api.v1.endpoints.auth import get_current_user_from_cookie
 
 router = APIRouter()
-
-# In-memory storage (should be replaced with persistent storage in production)
-conversations: Dict[str, List[Dict]] = {}
-conversation_metadata: Dict[str, Dict] = {}
-conversation_timestamps: Dict[str, datetime] = {}
-conversation_created_at: Dict[str, datetime] = {}
-MAX_HISTORY_AGE = timedelta(days=30)
-MAX_CONVERSATIONS = 100
-
-
-def cleanup_old_conversations():
-    current_time = datetime.now()
-    expired_ids = [
-        conv_id for conv_id, timestamp in conversation_timestamps.items()
-        if current_time - timestamp > MAX_HISTORY_AGE
-    ]
-    for conv_id in expired_ids:
-        conversations.pop(conv_id, None)
-        conversation_timestamps.pop(conv_id, None)
-        conversation_metadata.pop(conv_id, None)
-        conversation_created_at.pop(conv_id, None)
-    if len(conversations) > MAX_CONVERSATIONS:
-        sorted_convs = sorted(
-            [(conv_id, created_at) for conv_id, created_at in conversation_created_at.items()],
-            key=lambda x: x[1]
-        )
-        to_remove = sorted_convs[:-MAX_CONVERSATIONS]
-        for conv_id, _ in to_remove:
-            conversations.pop(conv_id, None)
-            conversation_timestamps.pop(conv_id, None)
-            conversation_metadata.pop(conv_id, None)
-            conversation_created_at.pop(conv_id, None)
-
+conversation_repo = ConversationRepository()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 @router.get("/conversations/metadata")
-async def get_conversation_metadata():
+async def get_conversation_metadata(user = Depends(get_current_user_from_cookie)):
     """Returns only metadata about conversations, not the messages"""
-    cleanup_old_conversations()
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    user_id = user.get("sub")
+    conversations = conversation_repo.get_conversations_by_user(user_id)
+    
+    # Always return an array, even if empty
+    if not conversations:
+        return {"conversations": []}
+    
+    # Sort by last update time
     sorted_conversations = sorted(
-        [
-            (conv_id, conversation_created_at[conv_id], conversation_timestamps[conv_id])
-            for conv_id in conversations.keys()
-        ],
-        key=lambda x: x[2],  # Sort by last update timestamp
+        conversations,
+        key=lambda x: x.get("updated_at", datetime.min),
         reverse=True
     )
+    
     return {
         "conversations": [
             {
-                "id": conv_id,
-                "title": conversation_metadata.get(conv_id, {}).get("title", "New Chat"),
-                "created_at": created_at.isoformat(),
-                "timestamp": last_update.isoformat(),
+                "id": conv.get("id"),
+                "title": conv.get("title", "New Chat"),
+                "created_at": conv.get("created_at").isoformat() if isinstance(conv.get("created_at"), datetime) else conv.get("created_at"),
+                "updated_at": conv.get("updated_at").isoformat() if isinstance(conv.get("updated_at"), datetime) else conv.get("updated_at"),
+                "user_id": conv.get("user_id")
             }
-            for conv_id, created_at, last_update in sorted_conversations
+            for conv in sorted_conversations
         ]
     }
 
 @router.get("/conversations/{conversation_id}")
-async def get_conversation_by_id(conversation_id: str):
+async def get_conversation_by_id(conversation_id: str, user = Depends(get_current_user_from_cookie)):
     """Returns a specific conversation by ID including its messages"""
-    if conversation_id not in conversations:
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    user_id = user.get("sub")
+    conversation = conversation_repo.get_conversation_by_id(conversation_id, user_id)
+    
+    if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
     
     return {
         "conversation": {
-            "id": conversation_id,
-            "title": conversation_metadata.get(conversation_id, {}).get("title", "New Chat"),
-            "created_at": conversation_created_at[conversation_id].isoformat(),
-            "timestamp": conversation_timestamps[conversation_id].isoformat(),
-            "messages": conversations[conversation_id]
+            "id": conversation.get("id"),
+            "title": conversation.get("title", "New Chat"),
+            "created_at": conversation.get("created_at").isoformat() if isinstance(conversation.get("created_at"), datetime) else conversation.get("created_at"),
+            "updated_at": conversation.get("updated_at").isoformat() if isinstance(conversation.get("updated_at"), datetime) else conversation.get("updated_at"),
+            "messages": conversation.get("messages", []),
+            "user_id": conversation.get("user_id")
         }
     }
 
 @router.get("/conversations")
-async def get_conversations():
-    cleanup_old_conversations()
+async def get_conversations(user = Depends(get_current_user_from_cookie)):
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    user_id = user.get("sub")
+    conversations = conversation_repo.get_conversations_by_user(user_id)
+    
+    # Always return an array, even if empty
+    if not conversations:
+        return {"conversations": []}
+    
+    # Sort by created_at time
     sorted_conversations = sorted(
-        [
-            (conv_id, conversation_created_at[conv_id], conversation_timestamps[conv_id])
-            for conv_id in conversations.keys()
-        ],
-        key=lambda x: x[1],
+        conversations,
+        key=lambda x: x.get("created_at", datetime.min),
         reverse=True
     )
+    
     return {
         "conversations": [
             {
-                "id": conv_id,
-                "title": conversation_metadata.get(conv_id, {}).get("title", "New Chat"),
-                "created_at": created_at.isoformat(),
-                "timestamp": last_update.isoformat(),
-                "messages": conversations[conv_id]
+                "id": conv.get("id"),
+                "title": conv.get("title", "New Chat"),
+                "created_at": conv.get("created_at").isoformat() if isinstance(conv.get("created_at"), datetime) else conv.get("created_at"),
+                "updated_at": conv.get("updated_at").isoformat() if isinstance(conv.get("updated_at"), datetime) else conv.get("updated_at"),
+                "messages": conv.get("messages", []),
+                "user_id": conv.get("user_id")
             }
-            for conv_id, created_at, last_update in sorted_conversations
+            for conv in sorted_conversations
         ]
     }
 
 
 @router.delete("/chat")
-async def clear_conversation(conv: ConversationId):
-    conv_id = conv.conversation_id or "default"
-    if conv_id in conversations:
-        conversations.pop(conv_id)
-        conversation_timestamps.pop(conv_id, None)
+async def clear_conversation(conv: ConversationId, user = Depends(get_current_user_from_cookie)):
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    user_id = user.get("sub")
+    if not conv.conversation_id:
+        raise HTTPException(status_code=400, detail="Conversation ID is required")
+    
+    success = conversation_repo.delete_conversation(conv.conversation_id, user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
     return {"status": "success"}
 
 
 @router.post("/chat")
-async def chat(message: ChatMessage):
+async def chat(message: ChatMessage, user = Depends(get_current_user_from_cookie)):
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    user_id = user.get("sub")
+    
     client = get_openai_client()
     if not os.getenv("OPENAI_API_KEY"):
         raise HTTPException(
@@ -124,27 +133,48 @@ async def chat(message: ChatMessage):
             detail="OpenAI API key not found. Please set OPENAI_API_KEY in .env file"
         )
     try:
-        cleanup_old_conversations()
-        conv_id = message.conversation_id or str(uuid.uuid4())
-        if conv_id not in conversations:
-            conversations[conv_id] = []
-            conversation_metadata[conv_id] = {"title": "New Chat"}
-            conversation_created_at[conv_id] = datetime.now()
-        conversation_timestamps[conv_id] = datetime.now()
-        conversations[conv_id].append({"role": "user", "content": message.content})
-        conversation_history = conversations[conv_id][-10:]
+        conv_id = message.conversation_id
+        conversation = None
+        
+        if conv_id:
+            # Check if conversation exists for this user
+            conversation = conversation_repo.get_conversation_by_id(conv_id, user_id)
+        
+        if not conversation:
+            # Create a new conversation
+            conversation = conversation_repo.create_conversation(user_id)
+            conv_id = conversation["id"]
+        
+        # Add user message to conversation
+        user_message = {"role": "user", "content": message.content}
+        conversation_repo.add_message(conv_id, user_id, user_message)
+        
+        # Get the last 10 messages for context
+        updated_conversation = conversation_repo.get_conversation_by_id(conv_id, user_id)
+        conversation_history = updated_conversation.get("messages", [])[-10:]
+        
+        # Get response from OpenAI
         response = await client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=conversation_history
         )
+        
         if not response.choices:
             raise HTTPException(
                 status_code=500,
                 detail="No response received from OpenAI API"
             )
+        
+        # Extract the response content
         assistant_message = response.choices[0].message.content
-        conversations[conv_id].append({"role": "assistant", "content": assistant_message})
-        if len(conversations[conv_id]) == 2:
+        
+        # Add assistant message to conversation
+        assistant_message_obj = {"role": "assistant", "content": assistant_message}
+        conversation_repo.add_message(conv_id, user_id, assistant_message_obj)
+        
+        # Generate a title if this is a new conversation (only 2 messages)
+        conversation = conversation_repo.get_conversation_by_id(conv_id, user_id)
+        if len(conversation.get("messages", [])) == 2:
             try:
                 title_response = await client.chat.completions.create(
                     model="gpt-3.5-turbo",
@@ -154,9 +184,11 @@ async def chat(message: ChatMessage):
                     ]
                 )
                 if title_response.choices:
-                    conversation_metadata[conv_id]["title"] = title_response.choices[0].message.content
+                    new_title = title_response.choices[0].message.content
+                    conversation_repo.update_conversation_title(conv_id, user_id, new_title)
             except Exception as e:
                 print(f"Error generating title: {e}")
+        
         return {
             "response": assistant_message,
             "conversation_id": conv_id

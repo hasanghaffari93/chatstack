@@ -39,7 +39,7 @@ export default function ChatSidebar({
             >
               <div className="font-medium truncate">{conversation.title}</div>
               <div className="text-xs opacity-60 truncate mt-1">
-                {new Date(conversation.timestamp).toLocaleTimeString(undefined, {
+                {new Date(conversation.updated_at).toLocaleTimeString(undefined, {
                   hour: '2-digit',
                   minute: '2-digit'
                 })}

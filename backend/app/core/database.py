@@ -141,4 +141,62 @@ def clean_expired_oauth_states() -> int:
     """Clean up expired OAuth states"""
     states = get_oauth_states_collection()
     result = states.delete_many({"expires_at": {"$lt": time.time()}})
+    return result.deleted_count
+
+
+# PKCE code verifier management
+def get_code_verifiers_collection():
+    """Get the code_verifiers collection from the database"""
+    db = get_database()
+    return db.code_verifiers
+
+
+def save_code_verifier(state: str, code_verifier: str) -> bool:
+    """Save a PKCE code verifier associated with a state"""
+    verifiers = get_code_verifiers_collection()
+    
+    # Add expiration time (10 minutes, same as state)
+    expires_at = time.time() + 600
+    
+    verifier_data = {
+        "state": state,
+        "code_verifier": code_verifier,
+        "created_at": time.time(),
+        "expires_at": expires_at
+    }
+    
+    # Use upsert to either insert new or update existing
+    result = verifiers.update_one(
+        {"state": state},
+        {"$set": verifier_data},
+        upsert=True
+    )
+    
+    return result.modified_count > 0 or result.upserted_id is not None
+
+
+def get_code_verifier(state: str) -> Optional[str]:
+    """Get a PKCE code verifier by state"""
+    verifiers = get_code_verifiers_collection()
+    verifier_data = verifiers.find_one({"state": state})
+    
+    # If verifier exists but is expired, delete it and return None
+    if verifier_data and time.time() > verifier_data.get("expires_at", 0):
+        verifiers.delete_one({"state": state})
+        return None
+    
+    return verifier_data.get("code_verifier") if verifier_data else None
+
+
+def delete_code_verifier(state: str) -> bool:
+    """Delete a PKCE code verifier from the database"""
+    verifiers = get_code_verifiers_collection()
+    result = verifiers.delete_one({"state": state})
+    return result.deleted_count > 0
+
+
+def clean_expired_code_verifiers() -> int:
+    """Clean up expired PKCE code verifiers"""
+    verifiers = get_code_verifiers_collection()
+    result = verifiers.delete_many({"expires_at": {"$lt": time.time()}})
     return result.deleted_count 

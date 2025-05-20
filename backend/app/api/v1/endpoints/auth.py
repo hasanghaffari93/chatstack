@@ -15,6 +15,8 @@ from google.auth.transport import requests as google_requests
 import asyncio
 from collections import defaultdict
 import pathlib
+import hashlib
+import base64
 from app.core.database import (
     get_user_by_id,
     get_user_by_email, 
@@ -24,7 +26,10 @@ from app.core.database import (
     save_oauth_state,
     get_oauth_state,
     delete_oauth_state,
-    clean_expired_oauth_states
+    clean_expired_oauth_states,
+    save_code_verifier,
+    get_code_verifier,
+    delete_code_verifier
 )
 
 # Load environment variables
@@ -37,7 +42,8 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
-REDIRECT_URI = f"{FRONTEND_URL}/login"
+# Change redirect URI to backend endpoint
+REDIRECT_URI = f"{BASE_URL}/api/auth/google-callback"
 JWT_SECRET = os.getenv("JWT_SECRET", secrets.token_urlsafe(32))
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
@@ -64,6 +70,17 @@ class UserInfo(BaseModel):
     name: str
     picture: Optional[str] = None
 
+# PKCE Helper Functions
+def generate_code_verifier(length=128):
+    """Generate a code_verifier for PKCE"""
+    return secrets.token_urlsafe(length)
+
+def generate_code_challenge(code_verifier):
+    """Generate a code_challenge from the code_verifier using SHA-256"""
+    code_challenge_digest = hashlib.sha256(code_verifier.encode()).digest()
+    code_challenge = base64.urlsafe_b64encode(code_challenge_digest).decode().rstrip('=')
+    return code_challenge
+
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = time.time() + ACCESS_TOKEN_EXPIRE_MINUTES * 60
@@ -79,14 +96,22 @@ def verify_access_token(token: str):
         return None
 
 def get_current_user_from_cookie(session_token: str = Cookie(None)):
+    """Get the current user from the session cookie"""
     if not session_token:
+        print("No session_token cookie found")
         return None
     
-    payload = verify_access_token(session_token)
-    if not payload:
-        return None
+    try:
+        payload = verify_access_token(session_token)
+        if not payload:
+            print("Invalid or expired session token")
+            return None
         
-    return payload
+        print(f"Valid session for user: {payload.get('email')}")
+        return payload
+    except Exception as e:
+        print(f"Error parsing session token: {str(e)}")
+        return None
 
 # Rate limiting dependency
 async def check_rate_limit(request: Request):
@@ -125,42 +150,255 @@ async def cleanup_old_entries():
 
 @router.get("/google-login")
 async def google_login(response: Response, request: Request, _: bool = Depends(check_rate_limit)):
-    """Generate state and redirect to Google OAuth login page"""
+    """Generate state, code_verifier, code_challenge and redirect to Google OAuth login page"""
     # Generate a random state token
     state = secrets.token_urlsafe(32)
+    
+    # Generate PKCE code_verifier and code_challenge
+    code_verifier = generate_code_verifier()
+    code_challenge = generate_code_challenge(code_verifier)
     
     # Store state with creation time (for expiration)
     state_data = {"created_at": time.time()}
     save_oauth_state(state, state_data)
     
+    # Store code_verifier associated with state
+    save_code_verifier(state, code_verifier)
+    
     # Periodically clean up expired states
     clean_expired_oauth_states()
     
-    # Use the frontend URL from environment variables
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-    redirect_uri = f"{frontend_url}/login"
-    
-    # Create auth URL with state parameter
+    # Create auth URL with state parameter and PKCE code_challenge
     auth_url = (
         f"https://accounts.google.com/o/oauth2/v2/auth"
         f"?response_type=code"
         f"&client_id={GOOGLE_CLIENT_ID}"
-        f"&redirect_uri={redirect_uri}"
+        f"&redirect_uri={REDIRECT_URI}"
         f"&scope=email%20profile"
         f"&access_type=offline"
         f"&state={state}"
+        f"&code_challenge={code_challenge}"
+        f"&code_challenge_method=S256"
     )
     
     print(f"Redirecting to Google OAuth with state: {state}")
     return RedirectResponse(url=auth_url)
 
+@router.get("/google-callback")
+async def google_callback_endpoint(code: str, state: str, request: Request, response: Response, _: bool = Depends(check_rate_limit)):
+    """Handle the callback from Google OAuth"""
+    try:
+        # Validate state to prevent CSRF
+        print(f"Received state: {state}")
+        
+        # Get state from database
+        state_data = get_oauth_state(state)
+        if not state_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired state parameter",
+            )
+        
+        # Get code_verifier for this state
+        code_verifier = get_code_verifier(state)
+        if not code_verifier:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired code verifier",
+            )
+        
+        # Exchange code for tokens
+        token_url = "https://oauth2.googleapis.com/token"
+        token_data = {
+            "code": code,
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "redirect_uri": REDIRECT_URI,
+            "grant_type": "authorization_code",
+            "code_verifier": code_verifier  # Include code_verifier for PKCE
+        }
+        
+        print(f"Exchanging code for token with data: {token_data}")
+        token_response = requests.post(token_url, data=token_data)
+        
+        if token_response.status_code != 200:
+            error_detail = f"Failed to exchange code for token: {token_response.text}"
+            print(error_detail)
+            # Clean up used state and code_verifier
+            delete_oauth_state(state)
+            delete_code_verifier(state)
+            # Redirect to frontend with error
+            redirect_response = RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
+            return redirect_response
+            
+        tokens = token_response.json()
+        access_token = tokens.get("access_token")
+        id_token_jwt = tokens.get("id_token")
+        refresh_token = tokens.get("refresh_token")
+        
+        # Skip ID token verification in development mode
+        if os.getenv("ENVIRONMENT") == "development":
+            # In development, just decode the JWT without verification
+            try:
+                # Simple JWT decoding without verification
+                import base64
+                import json
+                
+                # Parse the JWT
+                parts = id_token_jwt.split('.')
+                if len(parts) != 3:
+                    raise ValueError("Invalid JWT format")
+                
+                # Decode the payload
+                payload = parts[1]
+                # Add padding if needed
+                payload += '=' * (4 - len(payload) % 4) if len(payload) % 4 != 0 else ''
+                decoded = base64.b64decode(payload)
+                idinfo = json.loads(decoded)
+                
+                # Get user ID from decoded token
+                user_id = idinfo['sub']
+                print(f"Development mode: Decoded ID token without verification. User ID: {user_id}")
+            except Exception as e:
+                error_detail = f"Error decoding ID token: {str(e)}"
+                print(error_detail)
+                # Clean up used state and code_verifier
+                delete_oauth_state(state)
+                delete_code_verifier(state)
+                redirect_response = RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
+                return redirect_response
+        else:
+            # In production, properly verify the ID token
+            try:
+                print("Verifying ID token with Google...")
+                idinfo = id_token.verify_oauth2_token(
+                    id_token_jwt, google_requests.Request(), GOOGLE_CLIENT_ID
+                )
+                
+                # Verify issuer
+                if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+                    raise ValueError('Wrong issuer.')
+                    
+                # Get user ID from ID token
+                user_id = idinfo['sub']
+            except Exception as e:
+                error_detail = f"Invalid ID token: {str(e)}"
+                print(error_detail)
+                # Clean up used state and code_verifier
+                delete_oauth_state(state)
+                delete_code_verifier(state)
+                redirect_response = RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
+                return redirect_response
+            
+        # Get user info with the access token (as additional verification)
+        print("Getting user info with access token...")
+        user_info_response = requests.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        
+        if user_info_response.status_code != 200:
+            error_detail = f"Failed to get user info: {user_info_response.text}"
+            print(error_detail)
+            # Clean up used state and code_verifier
+            delete_oauth_state(state)
+            delete_code_verifier(state)
+            redirect_response = RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
+            return redirect_response
+            
+        user_data = user_info_response.json()
+        print(f"User data retrieved successfully: {user_data.get('email')}")
+        
+        # Verify that the user ID from ID token matches the one from userinfo
+        if user_id != user_data.get("sub"):
+            error_detail = f"User ID mismatch: {user_id} vs {user_data.get('sub')}"
+            print(error_detail)
+            # Clean up used state and code_verifier
+            delete_oauth_state(state)
+            delete_code_verifier(state)
+            redirect_response = RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
+            return redirect_response
+            
+        # Create user info object
+        user_info = UserInfo(
+            id=user_data.get("sub"),
+            email=user_data.get("email"),
+            name=user_data.get("name"),
+            picture=user_data.get("picture")
+        )
+        
+        # Save user to database
+        user_data_dict = {
+            "id": user_info.id,
+            "email": user_info.email,
+            "name": user_info.name,
+            "picture": user_info.picture,
+        }
+        
+        # Create or update user in the database
+        create_or_update_user(user_data_dict)
+        
+        # If we have a refresh token, store it in the database
+        if refresh_token:
+            save_user_refresh_token(user_info.id, refresh_token)
+        
+        # Create a session token (without the refresh token)
+        session_data = {
+            "sub": user_info.id,
+            "email": user_info.email,
+            "name": user_info.name,
+            "picture": user_info.picture,
+        }
+        
+        session_token = create_access_token(session_data)
+        
+        # Clean up used state and code_verifier
+        delete_oauth_state(state)
+        delete_code_verifier(state)
+        
+        print(f"Authentication successful for user: {user_info.email}")
+
+        # Create a response with redirect and cookie setting
+        from fastapi.responses import Response
+        
+        # First create the redirect response
+        redirect_response = RedirectResponse(url=f"{FRONTEND_URL}")
+        
+        # Set cookie in the redirect response
+        secure_cookie = os.getenv("ENVIRONMENT", "development") != "development"
+        redirect_response.set_cookie(
+            key="session_token",
+            value=session_token,
+            httponly=True,
+            secure=secure_cookie,  # True in production, False in development
+            samesite="lax",
+            domain=None,  # Let the browser set the domain automatically
+            path="/",     # Make sure cookie is sent for all paths
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        )
+        
+        return redirect_response
+        
+    except HTTPException as e:
+        print(f"HTTP Exception during authentication: {e.detail}")
+        # Redirect to frontend with error
+        redirect_response = RedirectResponse(url=f"{FRONTEND_URL}/login?error={e.detail}")
+        return redirect_response
+    except Exception as e:
+        error_detail = f"Authentication error: {str(e)}"
+        print(f"Unexpected error during authentication: {error_detail}")
+        # Redirect to frontend with error
+        redirect_response = RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
+        return redirect_response
+
+# Keep previous google-callback POST endpoint for backward compatibility
 @router.post("/google-callback", response_model=UserInfo)
-async def google_callback(token_request: TokenRequest, response: Response, request: Request, _: bool = Depends(check_rate_limit)):
-    """Exchange authorization code for tokens and get user info"""
+async def google_callback_post(token_request: TokenRequest, response: Response, request: Request, _: bool = Depends(check_rate_limit)):
+    """Exchange authorization code for tokens and get user info (DEPRECATED)"""
     try:
         # Validate state to prevent CSRF
         state = token_request.state
-        print(f"Received state: {state}")
+        print(f"Received state in POST endpoint: {state}")
         
         # Get state from database
         state_data = get_oauth_state(state)
@@ -226,10 +464,10 @@ async def google_callback(token_request: TokenRequest, response: Response, reque
             except Exception as e:
                 error_detail = f"Error decoding ID token: {str(e)}"
                 print(error_detail)
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail=error_detail,
-                )
+                # Clean up used state and code_verifier
+                delete_oauth_state(state)
+                delete_code_verifier(state)
+                return RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
         else:
             # In production, properly verify the ID token
             try:
@@ -247,10 +485,10 @@ async def google_callback(token_request: TokenRequest, response: Response, reque
             except Exception as e:
                 error_detail = f"Invalid ID token: {str(e)}"
                 print(error_detail)
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail=error_detail,
-                )
+                # Clean up used state and code_verifier
+                delete_oauth_state(state)
+                delete_code_verifier(state)
+                return RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
             
         # Get user info with the access token (as additional verification)
         print("Getting user info with access token...")
@@ -262,10 +500,10 @@ async def google_callback(token_request: TokenRequest, response: Response, reque
         if user_info_response.status_code != 200:
             error_detail = f"Failed to get user info: {user_info_response.text}"
             print(error_detail)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=error_detail,
-            )
+            # Clean up used state and code_verifier
+            delete_oauth_state(state)
+            delete_code_verifier(state)
+            return RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
             
         user_data = user_info_response.json()
         print(f"User data retrieved successfully: {user_data.get('email')}")
@@ -274,10 +512,10 @@ async def google_callback(token_request: TokenRequest, response: Response, reque
         if user_id != user_data.get("sub"):
             error_detail = f"User ID mismatch: {user_id} vs {user_data.get('sub')}"
             print(error_detail)
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=error_detail,
-            )
+            # Clean up used state and code_verifier
+            delete_oauth_state(state)
+            delete_code_verifier(state)
+            return RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
             
         # Create user info object
         user_info = UserInfo(
@@ -313,29 +551,35 @@ async def google_callback(token_request: TokenRequest, response: Response, reque
         session_token = create_access_token(session_data)
         
         # Set the session token as an HttpOnly cookie
+        secure_cookie = os.getenv("ENVIRONMENT", "development") != "development"
         response.set_cookie(
             key="session_token",
             value=session_token,
             httponly=True,
-            secure=os.getenv("ENVIRONMENT", "development") == "production",  # Secure in production
+            secure=secure_cookie,  # True in production, False in development
             samesite="lax",
+            domain=None,
+            path="/",
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
         )
         
+        # Clean up used state and code_verifier
+        delete_oauth_state(state)
+        delete_code_verifier(state)
+        
         print(f"Authentication successful for user: {user_info.email}")
-        # Return user information
-        return user_info
+        # Redirect to frontend home page after successful authentication
+        return RedirectResponse(url=f"{FRONTEND_URL}")
         
     except HTTPException as e:
         print(f"HTTP Exception during authentication: {e.detail}")
-        raise e
+        # Redirect to frontend with error
+        return RedirectResponse(url=f"{FRONTEND_URL}/login?error={e.detail}")
     except Exception as e:
         error_detail = f"Authentication error: {str(e)}"
         print(f"Unexpected error during authentication: {error_detail}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=error_detail,
-        )
+        # Redirect to frontend with error
+        return RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
 
 @router.post("/verify-google-token", response_model=UserInfo)
 async def verify_google_token(token: TokenData, request: Request, _: bool = Depends(check_rate_limit)):
@@ -397,8 +641,11 @@ async def logout(response: Response):
         key="session_token",
         httponly=True,
         secure=os.getenv("ENVIRONMENT", "development") == "production",
-        samesite="lax"
+        samesite="lax",
+        domain=None,  # Let browser determine the domain
+        path="/"      # Clear cookie for all paths
     )
+    print("Logout: Cleared session cookie")
     return {"message": "Logged out successfully"}
 
 @router.get("/me", response_model=UserInfo)
@@ -470,11 +717,12 @@ async def refresh_token(request: Request, response: Response, user: dict = Depen
         session_token = create_access_token(new_user_data)
         
         # Set the new session token as an HttpOnly cookie
+        secure_cookie = os.getenv("ENVIRONMENT", "development") != "development"
         response.set_cookie(
             key="session_token",
             value=session_token,
             httponly=True,
-            secure=os.getenv("ENVIRONMENT", "development") == "production",
+            secure=secure_cookie,  # True in production, False in development
             samesite="lax",
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
         )

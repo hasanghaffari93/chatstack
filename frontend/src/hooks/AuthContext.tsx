@@ -84,10 +84,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
-  // Google OAuth login
+  // Google OAuth login - redirect to backend for OAuth flow
   const login = () => {
-    // Instead of generating our own state and redirecting directly,
-    // use the backend's /google-login endpoint which handles state generation
+    // The backend now handles the entire OAuth flow including PKCE
     window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google-login`;
   };
 
@@ -104,70 +103,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Handle OAuth redirect
+  // Handle errors from OAuth flow redirects
   useEffect(() => {
-    const handleOAuthRedirect = async () => {
-      // Get the URL search parameters
+    const handleLoginErrors = () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get('code');
-      const state = urlParams.get('state');
+      const error = urlParams.get('error');
       
-      if (code && state) {
-        try {
-          // No need to verify state parameter here anymore as it's handled by the backend
-          console.log('Exchanging code for tokens...');
-          
-          // Exchange the code for tokens via our backend
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/google-callback`, {
-            method: 'POST',
-            credentials: 'include', // Include cookies
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              code,
-              state,
-              redirect_uri: window.location.origin + '/login'
-            }),
-          });
-          
-          if (!response.ok) {
-            // Try to get more detailed error information
-            let errorDetail = response.statusText;
-            try {
-              const errorData = await response.json();
-              if (errorData && errorData.detail) {
-                errorDetail = errorData.detail;
-              }
-            } catch (jsonError) {
-              console.error('Error parsing error response:', jsonError);
-            }
-            
-            // Redirect to login page with error message
-            const loginUrl = '/login?error=' + encodeURIComponent(errorDetail);
-            window.location.href = loginUrl;
-            return;
-          }
-          
-          const userData = await response.json();
-          console.log('Authentication successful!');
-          
-          // Save user data in state (not localStorage)
-          setUser(userData);
-          
-          // Clean up URL
-          window.history.replaceState({}, document.title, window.location.pathname);
-        } catch (error) {
-          console.error('Error during authentication:', error);
-          // Redirect to login page with error message
-          const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-          const loginUrl = '/login?error=' + encodeURIComponent(errorMessage);
-          window.location.href = loginUrl;
-        }
+      if (error) {
+        console.error('Authentication error:', error);
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
     };
     
-    handleOAuthRedirect();
+    handleLoginErrors();
   }, []);
 
   return (

@@ -1,17 +1,27 @@
 'use client';
 
 import { useAuth } from '../../hooks';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import GoogleLoginButton from '../components/GoogleLoginButton';
 
 export default function LoginPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
       router.push('/');
+    }
+
+    // Check for error parameter in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const errorParam = urlParams.get('error');
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam));
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [isAuthenticated, router]);
 
@@ -33,8 +43,20 @@ export default function LoginPage() {
           </p>
         </div>
         <div className="mt-8 space-y-6">
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center">
             <GoogleLoginButton />
+            
+            {error && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md w-full">
+                <p className="text-red-600 text-sm">{error}</p>
+                <button 
+                  onClick={() => setError(null)}
+                  className="text-xs text-gray-500 mt-1 hover:text-gray-700"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -20,6 +20,9 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Key for localStorage to track authentication status
+const AUTH_STATUS_KEY = 'chatstack_auth_status';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,31 +61,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(refreshInterval);
   }, [user, refreshToken]);
 
-  useEffect(() => {
-    // Check if user is already authenticated by validating session cookie
-    const checkAuth = async () => {
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
-          method: 'GET',
-          credentials: 'include', // Important: include cookies in the request
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+  // Check if cookie is valid and user is authenticated
+  const checkAuth = useCallback(async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+        method: 'GET',
+        credentials: 'include', // Important: include cookies in the request
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+        // Store authentication status in localStorage
+        localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
+      } else {
+        // If auth check fails, set user to null and update localStorage
+        setUser(null);
+        localStorage.setItem(AUTH_STATUS_KEY, 'unauthenticated');
+      }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      // Error checking auth status, assume not authenticated
+      setUser(null);
+      localStorage.setItem(AUTH_STATUS_KEY, 'unauthenticated');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Initial auth check on component mount
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  // Handle cross-tab authentication sync
+  useEffect(() => {
+    // Listen for storage events (logout in other tabs)
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === AUTH_STATUS_KEY) {
+        if (event.newValue === 'unauthenticated' && user !== null) {
+          // Another tab logged out, update this tab
+          setUser(null);
+        } else if (event.newValue === 'authenticated' && user === null) {
+          // Another tab logged in, recheck auth status
+          checkAuth();
         }
-      } catch (error) {
-        console.error('Authentication error:', error);
-      } finally {
-        setIsLoading(false);
       }
     };
 
-    checkAuth();
-  }, []);
+    // Also periodically check auth status to detect cookie expiration
+    const authCheckInterval = setInterval(() => {
+      checkAuth();
+    }, 60 * 1000); // Check every minute
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(authCheckInterval);
+    };
+  }, [user, checkAuth]);
 
   // Google OAuth login - redirect to backend for OAuth flow
   const login = () => {
@@ -98,6 +139,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: 'include', // Include cookies
       });
       setUser(null);
+      // Update localStorage to notify other tabs
+      localStorage.setItem(AUTH_STATUS_KEY, 'unauthenticated');
       // We don't redirect the user after logout, allowing them to stay on the main page
     } catch (error) {
       console.error('Logout error:', error);

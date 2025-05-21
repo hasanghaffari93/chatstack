@@ -84,7 +84,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   
   // Internal method to load conversation data without URL manipulation
   const loadConversation = async (id: string) => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      // If not authenticated, clear conversation state
+      setMessages([]);
+      setConversationId(null);
+      clearError();
+      return;
+    }
+    
     if (id === conversationId) return;
     if (activeSelectionRef.current === id) return;
     
@@ -129,11 +136,21 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isAuthenticated) {
       loadConversationMetadata();
+      
+      // If we have a conversation ID in the URL, load it
+      const path = window.location.pathname;
+      const match = path.match(/\/chat\/([^\/]+)/);
+      const urlConversationId = match ? match[1] : null;
+      
+      if (urlConversationId) {
+        loadConversation(urlConversationId);
+      }
     } else {
       // Clear conversations if not authenticated
       setConversationMetadata([]);
       setMessages([]);
       setConversationId(null);
+      setIsLoading(false); // Ensure loading is false when not authenticated
     }
   }, [isAuthenticated]);
 

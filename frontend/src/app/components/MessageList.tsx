@@ -7,6 +7,7 @@ import { useRef, useEffect } from 'react';
 import { Message } from '../types/chat';
 import ChatMessage from './ChatMessage';
 import Loading from './Loading';
+import { useAuth } from '../../hooks';
 
 interface MessageListProps {
   messages: Message[];
@@ -15,6 +16,7 @@ interface MessageListProps {
 
 export default function MessageList({ messages, isLoading }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { isAuthenticated } = useAuth();
 
   // Scroll to bottom when messages change
   const scrollToBottom = () => {
@@ -38,9 +40,8 @@ export default function MessageList({ messages, isLoading }: MessageListProps) {
       {messages.map((message, index) => (
         <ChatMessage key={index} message={message} />
       ))}
-      {isLoading && (
+      {isLoading && isAuthenticated && (
         <div className="flex items-start justify-start px-4">
-
           <div className="bg-[var(--bot-message-bg)] border border-[var(--input-border)] p-4 rounded-2xl">
             <Loading />
           </div>

@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks';
 import { useState, useRef, useEffect } from 'react';
 
 export default function UserProfileButton() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -23,6 +23,14 @@ export default function UserProfileButton() {
     };
   }, []);
 
+  // Close dropdown and logout confirm when authentication state changes
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setShowDropdown(false);
+      setShowLogoutConfirm(false);
+    }
+  }, [isAuthenticated]);
+
   const handleLogoutClick = () => {
     setShowLogoutConfirm(true);
     setShowDropdown(false);
@@ -40,6 +48,11 @@ export default function UserProfileButton() {
   const handleCancelLogout = () => {
     setShowLogoutConfirm(false);
   };
+
+  // Don't render anything if not authenticated
+  if (!isAuthenticated || !user) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col items-center relative">

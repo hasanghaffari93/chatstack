@@ -6,18 +6,19 @@ import { useRouter } from 'next/navigation';
 
 interface ProtectedRouteProps {
   children: ReactNode;
+  requireAuth?: boolean;
 }
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+export default function ProtectedRoute({ children, requireAuth = false }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      // Redirect to login page if not authenticated
+    // Only redirect if authentication is explicitly required for this route
+    if (!isLoading && !isAuthenticated && requireAuth) {
       router.push('/login');
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, router, requireAuth]);
 
   if (isLoading) {
     return (
@@ -27,9 +28,6 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!isAuthenticated) {
-    return null; // Will be redirected by the useEffect
-  }
-
+  // Always render children, even for unauthenticated users
   return <>{children}</>;
 } 

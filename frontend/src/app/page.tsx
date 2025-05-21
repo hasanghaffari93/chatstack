@@ -7,12 +7,13 @@ import ErrorMessage from "./components/ErrorMessage";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
-import { useChat, useChatUI } from "../hooks";
+import { useChat, useChatUI, useAuth } from "../hooks";
 
 
 export default function Home() {
   // Use the custom UI hook to manage UI-specific state
   const { isSidebarOpen, toggleSidebar } = useChatUI();
+  const { isAuthenticated } = useAuth();
   
   // Use the custom chat hook to manage chat state and functionality
   const {
@@ -32,7 +33,7 @@ export default function Home() {
   };
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute requireAuth={false}>
       <main className="flex min-h-screen bg-[var(--background)]">
         {isSidebarOpen && (
           <ChatSidebar

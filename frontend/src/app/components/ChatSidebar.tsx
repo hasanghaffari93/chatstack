@@ -1,4 +1,6 @@
 import { ConversationMetadata } from '../types/chat';
+import { useAuth } from '../../hooks';
+import { useState } from 'react';
 
 interface ChatSidebarProps {
   conversations: ConversationMetadata[];
@@ -13,12 +15,30 @@ export default function ChatSidebar({
   onSelectConversation,
   onNewChat,
 }: ChatSidebarProps) {
+  const { isAuthenticated } = useAuth();
+  const [showLoginNotification, setShowLoginNotification] = useState(false);
+
+  const handleNewChat = () => {
+    if (!isAuthenticated) {
+      setShowLoginNotification(true);
+      // Hide notification after 3 seconds
+      setTimeout(() => setShowLoginNotification(false), 3000);
+      return;
+    }
+    onNewChat();
+  };
+
   return (
     <div className="w-64 bg-[var(--sidebar-bg)] text-[var(--foreground)] p-2 flex flex-col h-screen border-r border-[var(--input-border)]">
       <div className="flex flex-col flex-1 min-h-0">
-        <div className="px-2 py-3">
+        <div className="px-2 py-3 relative">
+          {showLoginNotification && (
+            <div className="absolute top-14 left-4 right-4 p-3 bg-yellow-50 text-yellow-800 rounded-md border border-yellow-200 shadow-sm text-sm z-10 animate-fadeIn">
+              You must be logged in to create new chats. Please log in first.
+            </div>
+          )}
           <button
-            onClick={onNewChat}
+            onClick={handleNewChat}
             className="w-full mb-1 px-3 py-3 bg-[var(--primary)] text-white rounded-md hover:bg-[var(--primary-hover)] transition-colors flex items-center justify-center gap-3 text-sm font-medium"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

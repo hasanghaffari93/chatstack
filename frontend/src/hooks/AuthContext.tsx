@@ -98,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: 'include', // Include cookies
       });
       setUser(null);
+      // We don't redirect the user after logout, allowing them to stay on the main page
     } catch (error) {
       console.error('Logout error:', error);
     }

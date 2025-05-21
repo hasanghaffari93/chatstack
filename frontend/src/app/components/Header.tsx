@@ -2,7 +2,9 @@
  * Header Component
  * Displays the application header with sidebar toggle
  */
-import GoogleLoginButton from './GoogleLoginButton';
+import { useAuth } from '../../hooks';
+import LoginButton from './LoginButton';
+import UserProfileButton from './UserProfileButton';
 
 interface HeaderProps {
   isSidebarOpen: boolean;
@@ -10,6 +12,8 @@ interface HeaderProps {
 }
 
 export default function Header({ isSidebarOpen, onToggleSidebar }: HeaderProps) {
+  const { isAuthenticated } = useAuth();
+
   return (
     <div className="border-b border-[var(--input-border)] p-3 flex items-center justify-between">
       <div className="flex items-center">
@@ -35,7 +39,7 @@ export default function Header({ isSidebarOpen, onToggleSidebar }: HeaderProps) 
         <h1 className="ml-3 text-[var(--foreground)] text-lg font-medium">ChatStack</h1>
       </div>
       <div className="flex items-center">
-        <GoogleLoginButton />
+        {isAuthenticated ? <UserProfileButton /> : <LoginButton />}
       </div>
     </div>
   );

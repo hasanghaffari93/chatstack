@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '../../hooks';
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface ProtectedRouteProps {
@@ -12,11 +12,15 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children, requireAuth = false }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    // Only redirect if authentication is explicitly required for this route
-    if (!isLoading && !isAuthenticated && requireAuth) {
-      router.push('/login');
+    // Only redirect if authentication check has completed
+    if (!isLoading) {
+      setAuthChecked(true);
+      if (!isAuthenticated && requireAuth) {
+        router.push('/login');
+      }
     }
   }, [isAuthenticated, isLoading, router, requireAuth]);
 

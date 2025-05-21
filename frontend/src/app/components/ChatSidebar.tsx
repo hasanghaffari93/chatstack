@@ -5,7 +5,7 @@ import { useState } from 'react';
 interface ChatSidebarProps {
   conversations: ConversationMetadata[];
   activeConversationId: string | null;
-  onSelectConversation: (conversationId: string) => void;
+  onSelectConversation: (conversationId: string) => Promise<void>;
   onNewChat: () => void;
 }
 
@@ -26,6 +26,20 @@ export default function ChatSidebar({
       return;
     }
     onNewChat();
+  };
+
+  const handleSelectConversation = (conversationId: string) => {
+    if (!isAuthenticated) {
+      setShowLoginNotification(true);
+      setTimeout(() => setShowLoginNotification(false), 3000);
+      return;
+    }
+
+    // Only trigger selection if it's different from current active conversation
+    if (conversationId !== activeConversationId) {
+      console.log('Sidebar selecting conversation:', conversationId);
+      onSelectConversation(conversationId);
+    }
   };
 
   return (
@@ -52,7 +66,7 @@ export default function ChatSidebar({
           {conversations.map((conversation) => (
             <button
               key={conversation.id}
-              onClick={() => onSelectConversation(conversation.id)}
+              onClick={() => handleSelectConversation(conversation.id)}
               className={`w-full p-3 text-left rounded-md hover:bg-[var(--sidebar-hover)] transition-colors text-sm ${
                 activeConversationId === conversation.id ? 'bg-[var(--sidebar-active)]' : ''
               }`}

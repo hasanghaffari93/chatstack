@@ -69,39 +69,6 @@ async def get_conversation_by_id(conversation_id: str, user = Depends(get_curren
         }
     }
 
-@router.get("/conversations")
-async def get_conversations(user = Depends(get_current_user_from_cookie)):
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    user_id = user.get("sub")
-    conversations = conversation_repo.get_conversations_by_user(user_id)
-    
-    # Always return an array, even if empty
-    if not conversations:
-        return {"conversations": []}
-    
-    # Sort by created_at time
-    sorted_conversations = sorted(
-        conversations,
-        key=lambda x: x.get("created_at", datetime.min),
-        reverse=True
-    )
-    
-    return {
-        "conversations": [
-            {
-                "id": conv.get("id"),
-                "title": conv.get("title", "New Chat"),
-                "created_at": conv.get("created_at").isoformat() if isinstance(conv.get("created_at"), datetime) else conv.get("created_at"),
-                "updated_at": conv.get("updated_at").isoformat() if isinstance(conv.get("updated_at"), datetime) else conv.get("updated_at"),
-                "messages": conv.get("messages", []),
-                "user_id": conv.get("user_id")
-            }
-            for conv in sorted_conversations
-        ]
-    }
-
 
 @router.delete("/chat")
 async def clear_conversation(conv: ConversationId, user = Depends(get_current_user_from_cookie)):

@@ -96,44 +96,6 @@ export async function fetchConversationById(conversationId: string): Promise<Con
   }
 }
 
-/**
- * Fetches all conversations from the API
- * @deprecated Use fetchConversationMetadata instead
- */
-export async function fetchConversations(): Promise<Conversation[]> {
-  try {
-    // Correctly construct the API URL
-    const url = `${API_BASE_URL}/conversations`;
-    console.log('Fetching all conversations from:', url);
-    
-    const response = await fetch(url, defaultFetchOptions);
-    
-    // If user is not authenticated, return empty array instead of throwing an error
-    if (response.status === 401) {
-      console.log('User not authenticated. Please log in to view conversations.');
-      return [];
-    }
-    
-    // Handle 404 - This usually means the user has no conversations yet
-    if (response.status === 404) {
-      console.log('No conversations found. This is normal for new users.');
-      return [];
-    }
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to fetch conversations: ${errorText || response.statusText}`);
-    }
-    
-    const data = await response.json();
-    // Ensure we always return an array, even if the backend response doesn't include conversations
-    return data?.conversations || [];
-  } catch (error) {
-    console.error('Error fetching conversations:', error);
-    // Return empty array instead of throwing to prevent UI errors
-    return [];
-  }
-}
 
 /**
  * Sends a chat message to the API

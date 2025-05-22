@@ -8,6 +8,9 @@ from typing import Dict, List, Optional
 from datetime import datetime
 import uuid, os
 from app.api.v1.endpoints.auth import get_current_user_from_cookie
+from langchain.prompts import ChatPromptTemplate
+from langchain.schema import SystemMessage, HumanMessage, AIMessage
+from langchain_core.output_parsers import StrOutputParser
 
 router = APIRouter()
 conversation_repo = ConversationRepository()
@@ -93,7 +96,7 @@ async def chat(message: ChatMessage, user = Depends(get_current_user_from_cookie
     
     user_id = user.get("sub")
     
-    client = get_openai_client()
+    llm = get_openai_client()
     if not os.getenv("OPENAI_API_KEY"):
         raise HTTPException(
             status_code=500,
@@ -120,20 +123,20 @@ async def chat(message: ChatMessage, user = Depends(get_current_user_from_cookie
         updated_conversation = conversation_repo.get_conversation_by_id(conv_id, user_id)
         conversation_history = updated_conversation.get("messages", [])[-10:]
         
-        # Get response from OpenAI
-        response = await client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=conversation_history
-        )
+        # Convert the messages to LangChain format
+        langchain_messages = []
+        for msg in conversation_history:
+            if msg["role"] == "system":
+                langchain_messages.append(SystemMessage(content=msg["content"]))
+            elif msg["role"] == "user":
+                langchain_messages.append(HumanMessage(content=msg["content"]))
+            elif msg["role"] == "assistant":
+                langchain_messages.append(AIMessage(content=msg["content"]))
         
-        if not response.choices:
-            raise HTTPException(
-                status_code=500,
-                detail="No response received from OpenAI API"
-            )
-        
-        # Extract the response content
-        assistant_message = response.choices[0].message.content
+        # Get response from LangChain
+        output_parser = StrOutputParser()
+        chain = llm | output_parser
+        assistant_message = chain.invoke(langchain_messages)
         
         # Add assistant message to conversation
         assistant_message_obj = {"role": "assistant", "content": assistant_message}
@@ -143,16 +146,14 @@ async def chat(message: ChatMessage, user = Depends(get_current_user_from_cookie
         conversation = conversation_repo.get_conversation_by_id(conv_id, user_id)
         if len(conversation.get("messages", [])) == 2:
             try:
-                title_response = await client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {"role": "system", "content": "Generate a very short title (3-5 words) for a conversation that starts with this message. The title should capture the main topic or intent."},
-                        {"role": "user", "content": message.content}
-                    ]
-                )
-                if title_response.choices:
-                    new_title = title_response.choices[0].message.content
-                    conversation_repo.update_conversation_title(conv_id, user_id, new_title)
+                # Create a title generation prompt
+                title_prompt = ChatPromptTemplate.from_messages([
+                    ("system", "Generate a very short title (3-5 words) for a conversation that starts with this message. The title should capture the main topic or intent."),
+                    ("user", message.content)
+                ])
+                title_chain = title_prompt | llm | output_parser
+                new_title = title_chain.invoke({})
+                conversation_repo.update_conversation_title(conv_id, user_id, new_title)
             except Exception as e:
                 print(f"Error generating title: {e}")
         

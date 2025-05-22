@@ -1,10 +1,10 @@
 import os
 from dotenv import load_dotenv
-from openai import AsyncOpenAI
+from langchain_openai import ChatOpenAI
 
 load_dotenv()
 
 def get_openai_client():
-    return AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    return ChatOpenAI(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-3.5-turbo")
 
 # config file

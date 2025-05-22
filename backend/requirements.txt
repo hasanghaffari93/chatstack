@@ -8,3 +8,7 @@ google-auth
 pydantic
 python-multipart
 pymongo
+langchain
+langchain-openai
+langgraph
+langchain-community

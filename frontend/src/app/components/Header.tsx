@@ -15,11 +15,13 @@ export default function Header({ isSidebarOpen, onToggleSidebar }: HeaderProps) 
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="border-b border-[var(--input-border)] p-3 flex items-center justify-between">
+    <div className="border-b border-[var(--input-border)] p-3 flex items-center justify-between transition-all duration-300 ease-in-out">
       <div className="flex items-center">
         <button
           onClick={onToggleSidebar}
-          className="p-2 hover:bg-[var(--sidebar-hover)] rounded-md text-[var(--foreground)]"
+          className="p-2 hover:bg-[var(--sidebar-hover)] rounded-md text-[var(--foreground)] transition-all duration-300 ease-in-out"
+          aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+          title={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -36,7 +38,7 @@ export default function Header({ isSidebarOpen, onToggleSidebar }: HeaderProps) 
             />
           </svg>
         </button>
-        <h1 className="ml-3 text-[var(--foreground)] text-lg font-medium">ChatStack</h1>
+        <h1 className="ml-3 text-[var(--foreground)] text-lg font-medium transition-all duration-300 ease-in-out">ChatStack</h1>
       </div>
       <div className="flex items-center">
         {isAuthenticated ? <UserProfileButton /> : <LoginButton />}

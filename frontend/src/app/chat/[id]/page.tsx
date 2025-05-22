@@ -39,28 +39,28 @@ export default function ChatPage() {
   return (
     <ProtectedRoute requireAuth={true}>
       <main className="flex min-h-screen bg-[var(--background)]">
-        {isSidebarOpen && (
+        <div className={`sidebar-container transition-all duration-300 ease-in-out ${isSidebarOpen ? 'w-[var(--sidebar-width)]' : 'w-0 overflow-hidden'}`}>
           <ChatSidebar
             conversations={conversationMetadata}
             activeConversationId={conversationId}
             onSelectConversation={handleSelectConversation}
             onNewChat={handleNewChat}
           />
-        )}
+        </div>
         
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out">
           <div className="w-full bg-[var(--chat-bg)] overflow-hidden flex flex-col h-screen">
             <Header 
               isSidebarOpen={isSidebarOpen} 
               onToggleSidebar={toggleSidebar} 
             />
 
-            {error && <div className="px-4 md:px-8 lg:px-16 xl:px-32 pt-4">
+            {error && <div className="px-4 md:px-8 lg:px-16 xl:px-32 pt-4 transition-all duration-300 ease-in-out">
               <ErrorMessage message={error} />
             </div>}
             <MessageList messages={messages} isLoading={chatLoading} />
 
-            <div className="px-4 md:px-8 lg:px-16 xl:px-32 pb-4 pt-2">
+            <div className="px-4 md:px-8 lg:px-16 xl:px-32 pb-4 pt-2 transition-all duration-300 ease-in-out">
               <ChatInput onSendMessage={onSendMessage} isLoading={chatLoading} />
               <Footer />
             </div>

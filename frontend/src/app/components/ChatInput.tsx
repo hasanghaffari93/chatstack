@@ -55,14 +55,14 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
   };
 
   return (
-    <div className="relative">
+    <div className="relative transition-all duration-300 ease-in-out">
       {showLoginNotification && (
         <div className="absolute bottom-full left-0 right-0 mb-2 p-3 bg-yellow-50 text-yellow-800 rounded-md border border-yellow-200 shadow-sm text-sm animate-fadeIn">
           You must be logged in to send messages. Please log in first.
         </div>
       )}
       <form onSubmit={handleSubmit} className="relative">
-        <div className="border border-[var(--input-border)] bg-[var(--input-bg)] rounded-lg overflow-hidden shadow-sm">
+        <div className="border border-[var(--input-border)] bg-[var(--input-bg)] rounded-lg overflow-hidden shadow-sm transition-all duration-300 ease-in-out">
           <textarea
             value={input}
             ref={textareaRef}
@@ -72,7 +72,7 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
             }}
             onKeyDown={handleKeyDown}
             placeholder={isAuthenticated ? "Message ChatStack..." : "Log in to send messages..."}
-            className="w-full p-3 pr-12 bg-transparent focus:outline-none text-[var(--foreground)] placeholder-opacity-60 resize-none min-h-[44px] max-h-[200px] overflow-y-hidden text-sm"
+            className="w-full p-3 pr-12 bg-transparent focus:outline-none text-[var(--foreground)] placeholder-opacity-60 resize-none min-h-[44px] max-h-[200px] overflow-y-hidden text-sm transition-all duration-300 ease-in-out"
             disabled={isLoading}
             rows={1}
             style={{

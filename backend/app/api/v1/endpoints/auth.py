@@ -371,7 +371,7 @@ async def google_callback_endpoint(code: str, state: str, request: Request, resp
             value=session_token,
             httponly=True,
             secure=secure_cookie,  # True in production, False in development
-            samesite="lax",
+            samesite="none",
             domain=None,  # Let the browser set the domain automatically
             path="/",     # Make sure cookie is sent for all paths
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
@@ -557,7 +557,7 @@ async def google_callback_post(token_request: TokenRequest, response: Response, 
             value=session_token,
             httponly=True,
             secure=secure_cookie,  # True in production, False in development
-            samesite="lax",
+            samesite="none",
             domain=None,
             path="/",
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
@@ -641,7 +641,7 @@ async def logout(response: Response):
         key="session_token",
         httponly=True,
         secure=os.getenv("ENVIRONMENT", "development") == "production",
-        samesite="lax",
+        samesite="none",
         domain=None,  # Let browser determine the domain
         path="/"      # Clear cookie for all paths
     )
@@ -723,7 +723,7 @@ async def refresh_token(request: Request, response: Response, user: dict = Depen
             value=session_token,
             httponly=True,
             secure=secure_cookie,  # True in production, False in development
-            samesite="lax",
+            samesite="none",
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
         )
         

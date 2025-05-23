@@ -5,14 +5,16 @@
 
 import { useState, useRef } from 'react';
 import { useAuth } from '../../hooks';
+import ModelSelector from './ModelSelector';
 
 interface ChatInputProps {
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, model?: string) => void;
   isLoading: boolean;
 }
 
 export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) {
   const [input, setInput] = useState('');
+  const [selectedModel, setSelectedModel] = useState('gpt-3.5-turbo');
   const [showLoginNotification, setShowLoginNotification] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { isAuthenticated } = useAuth();
@@ -43,7 +45,8 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
       return;
     }
 
-    onSendMessage(input);
+    console.log('ChatInput: Sending message with model:', selectedModel);
+    onSendMessage(input, selectedModel);
     setInput('');
     
     // Reset textarea height and scroll state
@@ -54,6 +57,12 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
     }
   };
 
+  // Add debugging for model changes
+  const handleModelChange = (modelId: string) => {
+    console.log('ChatInput: Model changed to:', modelId);
+    setSelectedModel(modelId);
+  };
+
   return (
     <div className="relative transition-all duration-300 ease-in-out">
       {showLoginNotification && (
@@ -62,7 +71,8 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
         </div>
       )}
       <form onSubmit={handleSubmit} className="relative">
-        <div className="border border-[var(--input-border)] bg-[var(--input-bg)] rounded-lg overflow-hidden shadow-sm transition-all duration-300 ease-in-out">
+        <div className="border border-[var(--input-border)] bg-[var(--input-bg)] rounded-lg shadow-sm transition-all duration-300 ease-in-out overflow-visible">
+          {/* Main input area */}
           <textarea
             value={input}
             ref={textareaRef}
@@ -72,7 +82,7 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
             }}
             onKeyDown={handleKeyDown}
             placeholder={isAuthenticated ? "Message ChatStack..." : "Log in to send messages..."}
-            className="w-full p-3 pr-12 bg-transparent focus:outline-none text-[var(--foreground)] placeholder-opacity-60 resize-none min-h-[44px] max-h-[200px] overflow-y-hidden text-sm transition-all duration-300 ease-in-out"
+            className="w-full p-3 bg-transparent focus:outline-none text-[var(--foreground)] placeholder-opacity-60 resize-none min-h-[44px] max-h-[200px] overflow-y-hidden text-sm transition-all duration-300 ease-in-out"
             disabled={isLoading}
             rows={1}
             style={{
@@ -82,16 +92,26 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
               overflowY: input.length > 0 ? 'auto' : 'hidden'
             }}
           />
-          <button
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            className="absolute right-3 bottom-2 p-1.5 rounded-md text-[var(--primary)] hover:bg-[var(--sidebar-hover)] disabled:opacity-50 transition-colors"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
+          
+          {/* Bottom row with model selector and send button - removed border line */}
+          <div className="flex items-center justify-between px-3 pb-3">
+            <ModelSelector
+              selectedModel={selectedModel}
+              onModelChange={handleModelChange}
+              disabled={isLoading || !isAuthenticated}
+            />
+            
+            <button
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              className="p-2 rounded-md text-[var(--primary)] hover:bg-[var(--sidebar-hover)] disabled:opacity-50 transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
         </div>
       </form>
     </div>

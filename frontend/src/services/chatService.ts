@@ -96,11 +96,37 @@ export async function fetchConversationById(conversationId: string): Promise<Con
   }
 }
 
+/**
+ * Fetches available OpenAI models from the API
+ */
+export async function fetchAvailableModels(): Promise<any[]> {
+  try {
+    const url = `${API_BASE_URL}/models`;
+    console.log('Fetching available models from:', url);
+    
+    const response = await fetch(url, defaultFetchOptions);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch available models: ${errorText || response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data?.models || [];
+  } catch (error) {
+    console.error('Error fetching available models:', error);
+    // Return default models if API fails
+    return [
+      {"id": "gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "description": "Fast and efficient"},
+      {"id": "gpt-4", "name": "GPT-4", "description": "Most capable model"}
+    ];
+  }
+}
 
 /**
  * Sends a chat message to the API
  */
-export async function sendMessage(content: string, conversationId: string | null): Promise<ChatResponse> {
+export async function sendMessage(content: string, conversationId: string | null, model?: string): Promise<ChatResponse> {
   try {
     // Correctly construct the API URL
     const url = `${API_BASE_URL}/chat`;
@@ -108,9 +134,12 @@ export async function sendMessage(content: string, conversationId: string | null
     
     const payload = {
       content,
-      conversation_id: conversationId
+      conversation_id: conversationId,
+      model: model || "gpt-3.5-turbo"  // Include the selected model
     };
     console.log('Request payload:', payload);
+    console.log('Model parameter received in sendMessage:', model);
+    console.log('Final model in payload:', payload.model);
     
     const response = await fetch(url, {
       ...defaultFetchOptions,

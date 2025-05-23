@@ -13,7 +13,7 @@ interface ChatContextType {
   conversationId: string | null;
   conversationMetadata: ConversationMetadata[];
   error: string | null;
-  handleSendMessage: (content: string) => Promise<void>;
+  handleSendMessage: (content: string, model?: string) => Promise<void>;
   handleNewChat: () => void;
   handleSelectConversation: (id: string) => Promise<void>;
 }
@@ -177,8 +177,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (content: string, model?: string) => {
     if (!content.trim()) return;
+    
+    console.log('ChatContext: handleSendMessage called with model:', model);
     
     if (!isAuthenticated) {
       handleError(new Error("You must be logged in to send messages"), 'handleSendMessage');
@@ -192,7 +194,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     try {
       console.log('Sending message:', content, 'to conversation:', conversationId);
-      const data = await sendMessage(content, conversationId);
+      const data = await sendMessage(content, conversationId, model);
       console.log('Response received:', data);
       
       // Set new conversation ID and update URL if this is a new conversation

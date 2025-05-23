@@ -27,4 +27,5 @@ export interface Conversation {
 export interface ChatResponse {
   response: string;
   conversation_id: string;
+  model_used?: string;  // Optional field for the model used in the response
 }

@@ -28,8 +28,9 @@ export default function Home() {
   } = useChat();
 
   // Handle sending messages from the input component
-  const onSendMessage = async (message: string) => {
-    await handleSendMessage(message);
+  const onSendMessage = async (message: string, model?: string) => {
+    console.log('Page: onSendMessage called with model:', model);
+    await handleSendMessage(message, model);
   };
 
   return (

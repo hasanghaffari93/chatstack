@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer
 from app.schemas.chat import ChatMessage, ConversationId, MessageResponse
-from app.core.config import get_openai_client
+from app.core.config import get_openai_client, AVAILABLE_MODELS
 from app.repositories.conversation_repository import ConversationRepository
 from typing import Dict, List, Optional
 from datetime import datetime
@@ -15,6 +15,11 @@ from langchain_core.output_parsers import StrOutputParser
 router = APIRouter()
 conversation_repo = ConversationRepository()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
+
+@router.get("/models")
+async def get_available_models():
+    """Returns available OpenAI models for selection"""
+    return {"models": AVAILABLE_MODELS}
 
 @router.get("/conversations/metadata")
 async def get_conversation_metadata(user = Depends(get_current_user_from_cookie)):
@@ -96,7 +101,15 @@ async def chat(message: ChatMessage, user = Depends(get_current_user_from_cookie
     
     user_id = user.get("sub")
     
-    llm = get_openai_client()
+    # Debug: Print the received message to see what model is sent
+    print(f"DEBUG: Received message: content='{message.content}', model='{message.model}', conversation_id='{message.conversation_id}'")
+    
+    # Use the model specified in the message, or default to gpt-3.5-turbo
+    selected_model = message.model or "gpt-3.5-turbo"
+    print(f"DEBUG: Using model: {selected_model}")
+    
+    llm = get_openai_client(selected_model)
+    
     if not os.getenv("OPENAI_API_KEY"):
         raise HTTPException(
             status_code=500,
@@ -159,7 +172,8 @@ async def chat(message: ChatMessage, user = Depends(get_current_user_from_cookie
         
         return {
             "response": assistant_message,
-            "conversation_id": conv_id
+            "conversation_id": conv_id,
+            "model_used": selected_model  # Include the model used in the response
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")

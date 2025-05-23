@@ -31,9 +31,10 @@ export default function ChatPage() {
     handleSelectConversation
   } = useChat();
 
-  // Handle sending messages from the input component
-  const onSendMessage = async (message: string) => {
-    await handleSendMessage(message);
+  // Handle sending messages from the input component - FIXED: Added model parameter
+  const onSendMessage = async (message: string, model?: string) => {
+    console.log('ChatPage: onSendMessage called with model:', model);
+    await handleSendMessage(message, model);
   };
 
   return (

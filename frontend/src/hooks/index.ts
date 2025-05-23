@@ -6,5 +6,6 @@
 export { useChat } from './useChat';
 export { useErrorHandler } from './useErrorHandler';
 export { useChatUI } from './useChatUI';
+export { useAspectRatio } from './useAspectRatio';
 export { ChatProvider } from './ChatContext';
 export { AuthProvider, useAuth } from './AuthContext';

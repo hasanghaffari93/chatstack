@@ -34,8 +34,9 @@ export default function Home() {
 
   return (
     <ProtectedRoute requireAuth={false}>
-      <main className="flex min-h-screen bg-[var(--background)]">
-        <div className={`sidebar-container transition-all duration-300 ease-in-out ${isSidebarOpen ? 'w-[var(--sidebar-width)]' : 'w-0 overflow-hidden'}`}>
+      <main className="flex min-h-screen bg-[var(--background)] relative">
+        {/* Desktop sidebar - takes space and pushes content */}
+        <div className={`sidebar-container hidden md:block transition-all duration-300 ease-in-out ${isSidebarOpen ? 'w-[var(--sidebar-width)]' : 'w-0 overflow-hidden'}`}>
           <ChatSidebar
             conversations={conversationMetadata}
             activeConversationId={conversationId}
@@ -43,6 +44,24 @@ export default function Home() {
             onNewChat={handleNewChat}
           />
         </div>
+
+        {/* Mobile sidebar - overlays content */}
+        <div className={`fixed top-0 left-0 h-full w-[var(--sidebar-width)] z-50 md:hidden transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <ChatSidebar
+            conversations={conversationMetadata}
+            activeConversationId={conversationId}
+            onSelectConversation={handleSelectConversation}
+            onNewChat={handleNewChat}
+          />
+        </div>
+
+        {/* Mobile backdrop */}
+        {isSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            onClick={toggleSidebar}
+          />
+        )}
         
         <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out">
           <div className="w-full bg-[var(--chat-bg)] overflow-hidden flex flex-col h-screen">

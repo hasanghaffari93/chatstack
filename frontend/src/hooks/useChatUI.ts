@@ -45,7 +45,7 @@ export function useChatUI() {
       setIsSidebarOpen(false);
     }
     hasHydratedRef.current = true;
-  }, [isMobile]); // Removed isSidebarOpen from dependencies
+  }, [isMobile, isSidebarOpen]);
 
   /**
    * Effect to handle aspect ratio changes and close sidebar on mobile

@@ -24,12 +24,12 @@ export default function ChatMessage({ message }: ChatMessageProps) {
       >
         <ReactMarkdown
           components={{
-            code: ({inline, className, children, ...props}: React.HTMLAttributes<HTMLElement> & {inline?: boolean; children?: React.ReactNode; node?: any}) => {
+            code: ({inline, className, children}: React.HTMLAttributes<HTMLElement> & {inline?: boolean; children?: React.ReactNode}) => {
               return inline
                 ? <code className={className}>{children}</code>
                 : <CodeBlock className={className}>{children}</CodeBlock>;
             },
-            p: ({ node, ...props }) => <div {...props} className="whitespace-pre-wrap text-sm" />
+            p: ({ ...props }) => <div {...props} className="whitespace-pre-wrap text-sm" />
           }}
         >
           {message.content}

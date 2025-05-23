@@ -4,7 +4,6 @@ import { createContext, useContext, useState, useEffect, ReactNode, useRef } fro
 import { Message, ConversationMetadata } from '../app/types/chat';
 import { fetchConversationMetadata, fetchConversationById, sendMessage } from '../services';
 import { useErrorHandler } from './useErrorHandler';
-import { useRouter } from 'next/navigation';
 import { useAuth } from './AuthContext';
 
 interface ChatContextType {
@@ -26,7 +25,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversationMetadata, setConversationMetadata] = useState<ConversationMetadata[]>([]);
   const { error, handleError, clearError } = useErrorHandler();
-  const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   
   // Refs to track conversation state
@@ -152,6 +150,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setConversationId(null);
       setIsLoading(false); // Ensure loading is false when not authenticated
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   const loadConversationMetadata = async () => {

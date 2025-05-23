@@ -2,6 +2,7 @@
 
 import { useAuth } from '../../hooks';
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 
 export default function UserProfileButton() {
   const { user, logout, isAuthenticated } = useAuth();
@@ -64,9 +65,11 @@ export default function UserProfileButton() {
           aria-label="User menu"
         >
           {user?.picture ? (
-            <img 
+            <Image 
               src={user.picture} 
               alt={user.name || 'User avatar'} 
+              width={32}
+              height={32}
               className="w-8 h-8 rounded-full cursor-pointer hover:ring-2 hover:ring-gray-300"
               referrerPolicy="no-referrer"
             />
@@ -99,7 +102,7 @@ export default function UserProfileButton() {
           <div className="bg-[var(--chat-bg)] rounded-xl p-8 shadow-xl max-w-xs w-full border border-[var(--input-border)] animate-fadeIn flex flex-col" style={{ minHeight: '360px' }}>
             <div className="flex flex-col items-center text-center mb-8 flex-grow justify-center py-6">
               <h3 className="text-xl font-semibold text-[var(--foreground)]">Log out from ChatStack?</h3>
-              <p className="mt-4 text-[var(--foreground)] opacity-70 text-sm">You'll need to sign in again to access your chats</p>
+              <p className="mt-4 text-[var(--foreground)] opacity-70 text-sm">You&apos;ll need to sign in again to access your chats</p>
             </div>
             <div className="flex flex-col gap-4 mt-auto">
               <button

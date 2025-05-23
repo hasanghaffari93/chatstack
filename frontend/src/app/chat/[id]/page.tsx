@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
-import { useParams } from "next/navigation";
 import ChatSidebar from "../../components/ChatSidebar";
 import ChatInput from "../../components/ChatInput";
 import MessageList from "../../components/MessageList";
@@ -9,13 +7,9 @@ import ErrorMessage from "../../components/ErrorMessage";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
 import ProtectedRoute from "../../components/ProtectedRoute";
-import { useChat, useChatUI, useAuth } from "../../../hooks";
+import { useChat, useChatUI } from "../../../hooks";
 
 export default function ChatPage() {
-  const params = useParams();
-  const chatId = params?.id as string;
-  const { isAuthenticated } = useAuth();
-  
   // Use the custom UI hook to manage UI-specific state
   const { isSidebarOpen, toggleSidebar } = useChatUI();
   

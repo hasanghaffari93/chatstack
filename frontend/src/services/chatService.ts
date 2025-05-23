@@ -3,8 +3,7 @@
  * Handles all API communication related to chat functionality
  */
 
-import { Message, Conversation, ChatResponse, ConversationMetadata } from '../app/types/chat';
-import { handleApiError } from '../utils/errorHandling';
+import { Conversation, ChatResponse, ConversationMetadata } from '../app/types/chat';
 
 // Get base URL from environment without /api suffix
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -99,7 +98,7 @@ export async function fetchConversationById(conversationId: string): Promise<Con
 /**
  * Fetches available OpenAI models from the API
  */
-export async function fetchAvailableModels(): Promise<any[]> {
+export async function fetchAvailableModels(): Promise<{id: string; name: string; description: string}[]> {
   try {
     const url = `${API_BASE_URL}/models`;
     console.log('Fetching available models from:', url);
@@ -172,7 +171,7 @@ export async function sendMessage(content: string, conversationId: string | null
         if (errorData.detail) {
           errorDetail = errorData.detail;
         }
-      } catch (e) {
+      } catch {
         // If parsing fails, use the raw error text
         errorDetail = errorText || response.statusText;
       }

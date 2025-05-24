@@ -55,6 +55,21 @@ rate_limit_store = defaultdict(list)
 RATE_LIMIT_MAX_REQUESTS = 5  # Max requests per window
 RATE_LIMIT_WINDOW = 60  # Window size in seconds
 
+def set_auth_cookie(response: Response, session_token: str):
+    """Helper function to set authentication cookie with environment-appropriate settings"""
+    is_production = os.getenv("ENVIRONMENT", "development") == "production"
+    
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        secure=is_production,  # True in production (HTTPS), False in development (HTTP)
+        samesite="none" if is_production else "lax",  # "none" for cross-domain in production, "lax" for same-domain in development
+        domain=None,  # Let the browser set the domain automatically
+        path="/",     # Make sure cookie is sent for all paths
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
+
 class TokenRequest(BaseModel):
     code: str
     redirect_uri: Optional[str] = None
@@ -365,17 +380,7 @@ async def google_callback_endpoint(code: str, state: str, request: Request, resp
         redirect_response = RedirectResponse(url=f"{FRONTEND_URL}")
         
         # Set cookie in the redirect response
-        secure_cookie = os.getenv("ENVIRONMENT", "development") != "development"
-        redirect_response.set_cookie(
-            key="session_token",
-            value=session_token,
-            httponly=True,
-            secure=secure_cookie,  # True in production, False in development
-            samesite="none",
-            domain=None,  # Let the browser set the domain automatically
-            path="/",     # Make sure cookie is sent for all paths
-            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
-        )
+        set_auth_cookie(redirect_response, session_token)
         
         return redirect_response
         
@@ -551,17 +556,7 @@ async def google_callback_post(token_request: TokenRequest, response: Response, 
         session_token = create_access_token(session_data)
         
         # Set the session token as an HttpOnly cookie
-        secure_cookie = os.getenv("ENVIRONMENT", "development") != "development"
-        response.set_cookie(
-            key="session_token",
-            value=session_token,
-            httponly=True,
-            secure=secure_cookie,  # True in production, False in development
-            samesite="none",
-            domain=None,
-            path="/",
-            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
-        )
+        set_auth_cookie(response, session_token)
         
         # Clean up used state and code_verifier
         delete_oauth_state(state)
@@ -637,11 +632,13 @@ async def verify_google_token(token: TokenData, request: Request, _: bool = Depe
 @router.post("/logout")
 async def logout(response: Response):
     """Log out the user by clearing the session cookie"""
+    is_production = os.getenv("ENVIRONMENT", "development") == "production"
+    
     response.delete_cookie(
         key="session_token",
         httponly=True,
-        secure=os.getenv("ENVIRONMENT", "development") == "production",
-        samesite="none",
+        secure=is_production,
+        samesite="none" if is_production else "lax",
         domain=None,  # Let browser determine the domain
         path="/"      # Clear cookie for all paths
     )
@@ -717,15 +714,7 @@ async def refresh_token(request: Request, response: Response, user: dict = Depen
         session_token = create_access_token(new_user_data)
         
         # Set the new session token as an HttpOnly cookie
-        secure_cookie = os.getenv("ENVIRONMENT", "development") != "development"
-        response.set_cookie(
-            key="session_token",
-            value=session_token,
-            httponly=True,
-            secure=secure_cookie,  # True in production, False in development
-            samesite="none",
-            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
-        )
+        set_auth_cookie(response, session_token)
         
         return {"message": "Token refreshed successfully"}
         

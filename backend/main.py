@@ -12,13 +12,22 @@ app = FastAPI()
 # Get allowed origins from environment or use defaults
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 
+# Determine if we're in production (cross-domain) or development (same-domain)
+is_production = os.getenv("ENVIRONMENT", "development") == "production"
+
+# Configure CORS headers based on environment
+cors_headers = ["Content-Type", "Authorization", "X-Requested-With"]
+if is_production:
+    # Add Cookie header for cross-domain requests in production
+    cors_headers.append("Cookie")
+
 # Configure CORS with explicit cookie handling
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,  # This is required for cookies
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Cookie"],
+    allow_headers=cors_headers,
     expose_headers=["Set-Cookie", "Content-Type"],
     max_age=600,  # Cache CORS preflight requests for 10 minutes
 )

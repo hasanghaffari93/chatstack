@@ -10,8 +10,6 @@
  * @returns A standardized error message
  */
 export function handleApiError(error: unknown, context?: string): string {
-  console.error(`API Error${context ? ` in ${context}` : ''}:`, error);
-  
   if (error instanceof Error) {
     // Handle standard Error objects
     return error.message || 'An unexpected error occurred';

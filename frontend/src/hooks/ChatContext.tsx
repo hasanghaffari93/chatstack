@@ -60,13 +60,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     if (urlConversationId && urlConversationId !== conversationId && isAuthenticated) {
       // Only load if we're not already loading this conversation
       if (activeSelectionRef.current !== urlConversationId) {
-        console.log('Loading conversation from URL change:', urlConversationId);
         // Use internal method to avoid URL manipulation
         loadConversation(urlConversationId);
       }
     } else if (!urlConversationId && conversationId && path === '/') {
       // We're on the home page but have a conversation loaded - reset
-      console.log('Resetting conversation from URL change to home page');
       resetConversation();
     }
   });
@@ -104,7 +102,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (!isMountedRef.current || activeSelectionRef.current !== id) return;
       
       if (!conversation) {
-        console.log('Conversation not found:', id);
         resetConversation();
         return;
       }
@@ -119,7 +116,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       );
     } catch (err) {
       if (isMountedRef.current) {
-        console.error('Error loading conversation:', err);
         handleError(err, 'loadConversation');
       }
     } finally {
@@ -167,7 +163,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setConversationMetadata(data || []);
     } catch (err) {
       // Only handle the error if it's not an authentication error
-      console.error('Error loading conversations:', err);
       // Set empty array to avoid UI errors
       setConversationMetadata([]);
       handleError(err, 'loadConversationMetadata');
@@ -178,8 +173,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const handleSendMessage = async (content: string, model?: string) => {
     if (!content.trim()) return;
-    
-    console.log('ChatContext: handleSendMessage called with model:', model);
     
     if (!isAuthenticated) {
       handleError(new Error("You must be logged in to send messages"), 'handleSendMessage');
@@ -192,9 +185,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     clearError();
 
     try {
-      console.log('Sending message:', content, 'to conversation:', conversationId);
       const data = await sendMessage(content, conversationId, model);
-      console.log('Response received:', data);
       
       // Set new conversation ID and update URL if this is a new conversation
       if (!conversationId && data.conversation_id) {
@@ -203,7 +194,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         // Update URL and track the change
         const newUrl = `/chat/${data.conversation_id}`;
         if (window.location.pathname !== newUrl) {
-          console.log('New conversation created, updating URL to:', newUrl);
           lastUrlChangeRef.current = data.conversation_id;
           window.history.replaceState(null, '', newUrl);
         }
@@ -260,7 +250,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     // Update URL and track the change to prevent loops
     const newUrl = `/chat/${id}`;
     if (window.location.pathname !== newUrl) {
-      console.log('Updating URL for conversation:', id);
       lastUrlChangeRef.current = id;
       window.history.pushState(null, '', newUrl);
     }

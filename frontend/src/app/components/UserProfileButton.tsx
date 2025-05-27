@@ -42,7 +42,7 @@ export default function UserProfileButton() {
       await logout();
       setShowLogoutConfirm(false);
     } catch (err) {
-      console.error('Logout error:', err);
+      // Handle logout error silently
     }
   };
 

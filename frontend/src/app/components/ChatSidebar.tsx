@@ -37,7 +37,6 @@ export default function ChatSidebar({
 
     // Only trigger selection if it's different from current active conversation
     if (conversationId !== activeConversationId) {
-      console.log('Sidebar selecting conversation:', conversationId);
       onSelectConversation(conversationId);
     }
   };

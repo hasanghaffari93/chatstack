@@ -40,7 +40,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return response.ok;
     } catch (error) {
-      console.error('Token refresh error:', error);
       return false;
     }
   }, []);
@@ -83,7 +82,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(AUTH_STATUS_KEY, 'unauthenticated');
       }
     } catch (error) {
-      console.error('Authentication error:', error);
       // Error checking auth status, assume not authenticated
       setUser(null);
       localStorage.setItem(AUTH_STATUS_KEY, 'unauthenticated');
@@ -143,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(AUTH_STATUS_KEY, 'unauthenticated');
       // We don't redirect the user after logout, allowing them to stay on the main page
     } catch (error) {
-      console.error('Logout error:', error);
+      // Handle logout error silently
     }
   };
 
@@ -154,7 +152,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const error = urlParams.get('error');
       
       if (error) {
-        console.error('Authentication error:', error);
         // Clean up URL
         window.history.replaceState({}, document.title, window.location.pathname);
       }

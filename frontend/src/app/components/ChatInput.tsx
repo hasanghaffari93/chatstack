@@ -45,7 +45,6 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
       return;
     }
 
-    console.log('ChatInput: Sending message with model:', selectedModel);
     onSendMessage(input, selectedModel);
     setInput('');
     
@@ -57,9 +56,7 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
     }
   };
 
-  // Add debugging for model changes
   const handleModelChange = (modelId: string) => {
-    console.log('ChatInput: Model changed to:', modelId);
     setSelectedModel(modelId);
   };
 

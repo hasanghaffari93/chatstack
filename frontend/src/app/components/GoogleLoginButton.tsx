@@ -13,7 +13,7 @@ export default function GoogleLoginButton() {
       login();
       // The actual redirect is handled by the login function
     } catch (err) {
-      console.error('Login error:', err);
+      // Handle login error silently
       setIsLoggingIn(false);
     }
   };

@@ -37,7 +37,6 @@ export default function ModelSelector({ selectedModel, onModelChange, disabled =
         const availableModels = await fetchAvailableModels();
         setModels(availableModels);
       } catch (error) {
-        console.error('Error loading models:', error);
         // Fallback to default models
         setModels([
           {"id": "gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "description": "Fast and efficient"},

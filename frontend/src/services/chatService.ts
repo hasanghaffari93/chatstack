@@ -10,9 +10,6 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 // Append /api to form the actual API base URL
 const API_BASE_URL = `${BASE_URL}/api`;
 
-// Log the API base URL for debugging
-console.log('API_BASE_URL:', API_BASE_URL);
-
 // Default fetch options with credentials to include cookies for authentication
 const defaultFetchOptions = {
   credentials: 'include' as RequestCredentials,
@@ -28,19 +25,16 @@ export async function fetchConversationMetadata(): Promise<ConversationMetadata[
   try {
     // Correctly construct the API URL
     const url = `${API_BASE_URL}/conversations/metadata`;
-    console.log('Fetching conversation metadata from:', url);
     
     const response = await fetch(url, defaultFetchOptions);
     
     // If user is not authenticated, return empty array instead of throwing an error
     if (response.status === 401) {
-      console.log('User not authenticated. Please log in to view conversations.');
       return [];
     }
     
     // Handle 404 - This usually means the user has no conversations yet
     if (response.status === 404) {
-      console.log('No conversations found. This is normal for new users.');
       return [];
     }
     
@@ -53,7 +47,6 @@ export async function fetchConversationMetadata(): Promise<ConversationMetadata[
     // Ensure we always return an array, even if the backend response doesn't include conversations
     return data?.conversations || [];
   } catch (error) {
-    console.error('Error fetching conversation metadata:', error);
     // Return empty array instead of throwing to prevent UI errors
     return [];
   }
@@ -66,19 +59,16 @@ export async function fetchConversationById(conversationId: string): Promise<Con
   try {
     // Correctly construct the API URL
     const url = `${API_BASE_URL}/conversations/${conversationId}`;
-    console.log('Fetching conversation by ID from:', url);
     
     const response = await fetch(url, defaultFetchOptions);
     
     // If user is not authenticated, return null instead of throwing an error
     if (response.status === 401) {
-      console.log('User not authenticated. Please log in to view this conversation.');
       return null;
     }
     
     // Handle 404 - This means the conversation wasn't found
     if (response.status === 404) {
-      console.log(`Conversation ${conversationId} not found.`);
       return null;
     }
     
@@ -90,7 +80,6 @@ export async function fetchConversationById(conversationId: string): Promise<Con
     const data = await response.json();
     return data.conversation;
   } catch (error) {
-    console.error(`Error fetching conversation ${conversationId}:`, error);
     return null;
   }
 }
@@ -101,7 +90,6 @@ export async function fetchConversationById(conversationId: string): Promise<Con
 export async function fetchAvailableModels(): Promise<{id: string; name: string; description: string}[]> {
   try {
     const url = `${API_BASE_URL}/models`;
-    console.log('Fetching available models from:', url);
     
     const response = await fetch(url, defaultFetchOptions);
     
@@ -113,7 +101,6 @@ export async function fetchAvailableModels(): Promise<{id: string; name: string;
     const data = await response.json();
     return data?.models || [];
   } catch (error) {
-    console.error('Error fetching available models:', error);
     // Return default models if API fails
     return [
       {"id": "gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "description": "Fast and efficient"},
@@ -129,16 +116,12 @@ export async function sendMessage(content: string, conversationId: string | null
   try {
     // Correctly construct the API URL
     const url = `${API_BASE_URL}/chat`;
-    console.log('Sending message to API:', url);
     
     const payload = {
       content,
       conversation_id: conversationId,
       model: model || "gpt-3.5-turbo"  // Include the selected model
     };
-    console.log('Request payload:', payload);
-    console.log('Model parameter received in sendMessage:', model);
-    console.log('Final model in payload:', payload.model);
     
     const response = await fetch(url, {
       ...defaultFetchOptions,
@@ -146,22 +129,17 @@ export async function sendMessage(content: string, conversationId: string | null
       body: JSON.stringify(payload),
     });
 
-    // Log the response status for debugging
-    console.log('API response status:', response.status, response.statusText);
-
     if (response.status === 401) {
       throw new Error('You must be logged in to send messages');
     }
 
     // Handle 404 - Most likely the API endpoint is not found
     if (response.status === 404) {
-      console.error('API endpoint not found:', url);
       throw new Error('API endpoint not found. Please check server configuration.');
     }
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('API error response:', errorText);
       
       let errorDetail = 'API request failed';
       
@@ -180,10 +158,8 @@ export async function sendMessage(content: string, conversationId: string | null
     }
 
     const responseData = await response.json();
-    console.log('API response data:', responseData);
     return responseData;
   } catch (error) {
-    console.error('Error sending message:', error);
     // Rethrow the error to let the caller handle it
     throw error;
   }

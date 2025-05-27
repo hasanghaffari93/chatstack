@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       return response.ok;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }, []);
@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         localStorage.setItem(AUTH_STATUS_KEY, 'unauthenticated');
       }
-    } catch (error) {
+    } catch (_error) {
       // Error checking auth status, assume not authenticated
       setUser(null);
       localStorage.setItem(AUTH_STATUS_KEY, 'unauthenticated');
@@ -140,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Update localStorage to notify other tabs
       localStorage.setItem(AUTH_STATUS_KEY, 'unauthenticated');
       // We don't redirect the user after logout, allowing them to stay on the main page
-    } catch (error) {
+    } catch (_error) {
       // Handle logout error silently
     }
   };

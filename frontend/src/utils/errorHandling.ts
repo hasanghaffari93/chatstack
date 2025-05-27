@@ -9,7 +9,7 @@
  * @param context Optional context information about where the error occurred
  * @returns A standardized error message
  */
-export function handleApiError(error: unknown, context?: string): string {
+export function handleApiError(error: unknown, _context?: string): string {
   if (error instanceof Error) {
     // Handle standard Error objects
     return error.message || 'An unexpected error occurred';

@@ -41,7 +41,7 @@ export default function UserProfileButton() {
     try {
       await logout();
       setShowLogoutConfirm(false);
-    } catch (err) {
+    } catch (_err) {
       // Handle logout error silently
     }
   };

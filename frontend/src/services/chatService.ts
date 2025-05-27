@@ -46,7 +46,7 @@ export async function fetchConversationMetadata(): Promise<ConversationMetadata[
     const data = await response.json();
     // Ensure we always return an array, even if the backend response doesn't include conversations
     return data?.conversations || [];
-  } catch (error) {
+  } catch (_error) {
     // Return empty array instead of throwing to prevent UI errors
     return [];
   }
@@ -79,7 +79,7 @@ export async function fetchConversationById(conversationId: string): Promise<Con
     
     const data = await response.json();
     return data.conversation;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -100,7 +100,7 @@ export async function fetchAvailableModels(): Promise<{id: string; name: string;
     
     const data = await response.json();
     return data?.models || [];
-  } catch (error) {
+  } catch (_error) {
     // Return default models if API fails
     return [
       {"id": "gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "description": "Fast and efficient"},

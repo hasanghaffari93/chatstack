@@ -256,7 +256,7 @@ export async function sendMessageStream(
                   onError(data.error);
                   return;
               }
-            } catch (e) {
+            } catch (_e) {
               console.warn('Failed to parse SSE data:', line);
             }
           }

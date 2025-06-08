@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { Message, ConversationMetadata } from '../app/types/chat';
-import { fetchConversationMetadata, fetchConversationById, sendMessage, sendMessageStream } from '../services';
+import { fetchConversationMetadata, fetchConversationById, sendMessageStream } from '../services';
 import { useErrorHandler } from './useErrorHandler';
 import { useAuth } from './AuthContext';
 
@@ -221,12 +221,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           }
         },
         // Handle title updates
-        (title: string) => {
+        (_title: string) => {
           // Refresh conversation metadata to get the new title
           loadConversationMetadata();
         },
         // Handle completion
-        (modelUsed: string) => {
+        (_modelUsed: string) => {
           // Refresh conversation metadata after sending a message
           loadConversationMetadata();
         },

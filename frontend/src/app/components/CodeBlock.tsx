@@ -20,7 +20,7 @@ export default function CodeBlock({ className, children }: CodeBlockProps) {
 
   return (
     <div
-      className="rounded-xl border border-[var(--input-border)] bg-[#f6f6f9] my-4 overflow-hidden"
+      className="w-full max-w-md mx-auto rounded-xl border border-[var(--input-border)] bg-[#f6f6f9] my-4 overflow-hidden sm:max-w-lg md:max-w-xl lg:max-w-2xl"
       style={{ fontSize: "0.95em" }}
     >
       <div className="flex items-center justify-between px-4 py-2 bg-[#f3f3f6] border-b border-[var(--input-border)]">
@@ -32,15 +32,23 @@ export default function CodeBlock({ className, children }: CodeBlockProps) {
           {copied ? "Copied!" : "Copy"}
         </button>
       </div>
-      <SyntaxHighlighter
-        language={language}
-        style={oneLight}
-        customStyle={{ background: "#f6f6f9", margin: 0, padding: "1em" }}
-        codeTagProps={{ style: { background: "#f6f6f9" } }}
-        showLineNumbers={false}
-      >
-        {String(children).replace(/\n$/, "")}
-      </SyntaxHighlighter>
+      <div className="overflow-x-auto">
+        <SyntaxHighlighter
+          language={language}
+          style={oneLight}
+          customStyle={{ 
+            background: "#f6f6f9", 
+            margin: 0, 
+            padding: "1em",
+            minWidth: "100%",
+            whiteSpace: "pre"
+          }}
+          codeTagProps={{ style: { background: "#f6f6f9" } }}
+          showLineNumbers={false}
+        >
+          {String(children).replace(/\n$/, "")}
+        </SyntaxHighlighter>
+      </div>
     </div>
   );
 }

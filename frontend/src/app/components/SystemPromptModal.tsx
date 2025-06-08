@@ -63,7 +63,7 @@ export default function SystemPromptModal({ isOpen, onClose, onSave, currentProm
         <div className="p-4">
           <div className="mb-4">
             <p className="text-sm text-[var(--foreground)] opacity-70 mb-2">
-              Set a system prompt that will be used for all your conversations. This helps define the AI's behavior and personality.
+              Set a system prompt that will be used for all your conversations. This helps define the AI&apos;s behavior and personality.
             </p>
             <p className="text-xs text-[var(--foreground)] opacity-50">
               Leave empty to use the default system behavior.

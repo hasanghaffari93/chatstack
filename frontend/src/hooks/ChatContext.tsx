@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { Message, ConversationMetadata } from '../app/types/chat';
-import { fetchConversationMetadata, fetchConversationById, sendMessage } from '../services';
+import { fetchConversationMetadata, fetchConversationById, sendMessage, sendMessageStream } from '../services';
 import { useErrorHandler } from './useErrorHandler';
 import { useAuth } from './AuthContext';
 
@@ -184,37 +184,79 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     clearError();
 
+    // Add a placeholder for the assistant message that will be streamed
+    let assistantMessageContent = '';
+    setMessages((prev) => [...prev, { content: '', isUser: false }]);
+    
     try {
-      const data = await sendMessage(content, conversationId, model);
-      
-      // Set new conversation ID and update URL if this is a new conversation
-      if (!conversationId && data.conversation_id) {
-        setConversationId(data.conversation_id);
-        
-        // Update URL and track the change
-        const newUrl = `/chat/${data.conversation_id}`;
-        if (window.location.pathname !== newUrl) {
-          lastUrlChangeRef.current = data.conversation_id;
-          window.history.replaceState(null, '', newUrl);
-        }
-      }
-      
-      setMessages((prev) => [
-        ...prev,
-        { content: data.response, isUser: false },
-      ]);
-      
-      // Refresh conversation metadata after sending a message
-      loadConversationMetadata();
+      await sendMessageStream(
+        content,
+        conversationId,
+        // Handle content chunks
+        (chunk: string) => {
+          assistantMessageContent += chunk;
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            // Update the last message (which should be the assistant message)
+            if (newMessages.length > 0 && !newMessages[newMessages.length - 1].isUser) {
+              newMessages[newMessages.length - 1] = {
+                content: assistantMessageContent,
+                isUser: false
+              };
+            }
+            return newMessages;
+          });
+        },
+        // Handle new conversation ID
+        (newConversationId: string) => {
+          if (!conversationId) {
+            setConversationId(newConversationId);
+            
+            // Update URL and track the change
+            const newUrl = `/chat/${newConversationId}`;
+            if (window.location.pathname !== newUrl) {
+              lastUrlChangeRef.current = newConversationId;
+              window.history.replaceState(null, '', newUrl);
+            }
+          }
+        },
+        // Handle title updates
+        (title: string) => {
+          // Refresh conversation metadata to get the new title
+          loadConversationMetadata();
+        },
+        // Handle completion
+        (modelUsed: string) => {
+          // Refresh conversation metadata after sending a message
+          loadConversationMetadata();
+        },
+        // Handle errors
+        (error: string) => {
+          // Remove the empty assistant message and add error message
+          setMessages((prev) => {
+            const newMessages = [...prev];
+            // Remove the last message if it's empty (the placeholder)
+            if (newMessages.length > 0 && !newMessages[newMessages.length - 1].isUser && !newMessages[newMessages.length - 1].content) {
+              newMessages.pop();
+            }
+            // Add error message
+            return [...newMessages, { content: error, isUser: false }];
+          });
+        },
+        model
+      );
     } catch (err) {
       const friendlyError = handleError(err, 'handleSendMessage');
-      setMessages((prev) => [
-        ...prev,
-        {
-          content: friendlyError,
-          isUser: false,
-        },
-      ]);
+      // Remove the empty assistant message and add error message
+      setMessages((prev) => {
+        const newMessages = [...prev];
+        // Remove the last message if it's empty (the placeholder)
+        if (newMessages.length > 0 && !newMessages[newMessages.length - 1].isUser && !newMessages[newMessages.length - 1].content) {
+          newMessages.pop();
+        }
+        // Add error message
+        return [...newMessages, { content: friendlyError, isUser: false }];
+      });
     } finally {
       setIsLoading(false);
     }

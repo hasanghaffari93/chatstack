@@ -164,3 +164,108 @@ export async function sendMessage(content: string, conversationId: string | null
     throw error;
   }
 }
+
+/**
+ * Sends a chat message with streaming response
+ */
+export async function sendMessageStream(
+  content: string, 
+  conversationId: string | null, 
+  onChunk: (chunk: string) => void,
+  onConversationId: (id: string) => void,
+  onTitle: (title: string) => void,
+  onComplete: (modelUsed: string) => void,
+  onError: (error: string) => void,
+  model?: string
+): Promise<void> {
+  try {
+    const url = `${API_BASE_URL}/chat/stream`;
+    
+    const payload = {
+      content,
+      conversation_id: conversationId,
+      model: model || "gpt-3.5-turbo"
+    };
+    
+    const response = await fetch(url, {
+      ...defaultFetchOptions,
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: {
+        ...defaultFetchOptions.headers,
+        'Accept': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+      }
+    });
+
+    if (response.status === 401) {
+      throw new Error('You must be logged in to send messages');
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorDetail = 'API request failed';
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.detail) {
+          errorDetail = errorData.detail;
+        }
+      } catch {
+        errorDetail = errorText || response.statusText;
+      }
+      
+      throw new Error(errorDetail);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('Failed to get response reader');
+    }
+
+    const decoder = new TextDecoder();
+    
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              switch (data.type) {
+                case 'conversation_id':
+                  onConversationId(data.conversation_id);
+                  break;
+                case 'content':
+                  onChunk(data.content);
+                  break;
+                case 'title':
+                  onTitle(data.title);
+                  break;
+                case 'done':
+                  onComplete(data.model_used);
+                  return;
+                case 'error':
+                  onError(data.error);
+                  return;
+              }
+            } catch (e) {
+              console.warn('Failed to parse SSE data:', line);
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  } catch (error) {
+    onError(error instanceof Error ? error.message : 'Unknown error occurred');
+  }
+}

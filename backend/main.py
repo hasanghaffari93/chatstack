@@ -16,7 +16,7 @@ ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",
 is_production = os.getenv("ENVIRONMENT", "development") == "production"
 
 # Configure CORS headers based on environment
-cors_headers = ["Content-Type", "Authorization", "X-Requested-With"]
+cors_headers = ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Cache-Control"]
 if is_production:
     # Add Cookie header for cross-domain requests in production
     cors_headers.append("Cookie")
@@ -28,7 +28,7 @@ app.add_middleware(
     allow_credentials=True,  # This is required for cookies
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=cors_headers,
-    expose_headers=["Set-Cookie", "Content-Type"],
+    expose_headers=["Set-Cookie", "Content-Type", "Cache-Control", "Connection", "X-Accel-Buffering"],
     max_age=600,  # Cache CORS preflight requests for 10 minutes
 )
 

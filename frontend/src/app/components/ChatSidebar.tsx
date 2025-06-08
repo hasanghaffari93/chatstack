@@ -1,6 +1,6 @@
 import { ConversationMetadata } from '../types/chat';
 import { useAuth } from '../../hooks';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface ChatSidebarProps {
   conversations: ConversationMetadata[];
@@ -17,6 +17,22 @@ export default function ChatSidebar({
 }: ChatSidebarProps) {
   const { isAuthenticated } = useAuth();
   const [showLoginNotification, setShowLoginNotification] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleNewChat = () => {
     if (!isAuthenticated) {
@@ -39,6 +55,18 @@ export default function ChatSidebar({
     if (conversationId !== activeConversationId) {
       onSelectConversation(conversationId);
     }
+  };
+
+  const toggleMenu = (conversationId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpenMenuId(openMenuId === conversationId ? null : conversationId);
+  };
+
+  const handleDeleteClick = (conversationId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // TODO: Implement delete functionality
+    console.log('Delete conversation:', conversationId);
+    setOpenMenuId(null);
   };
 
   return (
@@ -98,11 +126,13 @@ export default function ChatSidebar({
                 key={conversation.id}
                 className={`relative group w-full rounded-lg hover:bg-[var(--sidebar-hover)] transition-colors ${
                   activeConversationId === conversation.id ? 'bg-[var(--sidebar-active)]' : ''
-                }`}
+                } ${openMenuId === conversation.id ? 'bg-[var(--sidebar-hover)] z-40' : 'z-0'}`}
               >
                 <button
                   onClick={() => handleSelectConversation(conversation.id)}
-                  className="w-full p-3 text-left text-sm group-hover:pr-10 transition-all duration-200"
+                  className={`w-full p-3 text-left text-sm transition-all duration-200 ${
+                    openMenuId === conversation.id ? 'pr-10' : 'group-hover:pr-10'
+                  }`}
                 >
                   <div className="font-medium truncate">{conversation.title}</div>
                   <div className="text-xs opacity-60 truncate mt-1">
@@ -114,42 +144,92 @@ export default function ChatSidebar({
                 </button>
                 
                 {/* Three dots menu icon */}
-                <button
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 rounded-md opacity-0 group-hover:opacity-100 hover:bg-[var(--sidebar-hover)] transition-all duration-200 ease-in-out"
-                  aria-label="More options"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // TODO: Add menu functionality here
-                  }}
-                >
-                  <svg 
-                    width="16" 
-                    height="16" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="text-[var(--foreground)] opacity-90"
+                <div className="absolute right-2 top-1/2 transform -translate-y-1/2" ref={menuRef}>
+                  <button
+                    className={`p-1.5 rounded-md hover:bg-[var(--sidebar-hover)] transition-all duration-200 ease-in-out ${
+                      openMenuId === conversation.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    }`}
+                    aria-label="More options"
+                    onClick={(e) => toggleMenu(conversation.id, e)}
                   >
-                    <circle 
-                      cx="12" 
-                      cy="12" 
-                      r="2.0" 
-                      fill="currentColor"
-                    />
-                    <circle 
-                      cx="12" 
-                      cy="5" 
-                      r="2.0" 
-                      fill="currentColor"
-                    />
-                    <circle 
-                      cx="12" 
-                      cy="19" 
-                      r="2.0" 
-                      fill="currentColor"
-                    />
-                  </svg>
-                </button>
+                    <svg 
+                      width="16" 
+                      height="16" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="text-[var(--foreground)] opacity-90"
+                    >
+                      <circle 
+                        cx="12" 
+                        cy="12" 
+                        r="2.0" 
+                        fill="currentColor"
+                      />
+                      <circle 
+                        cx="12" 
+                        cy="5" 
+                        r="2.0" 
+                        fill="currentColor"
+                      />
+                      <circle 
+                        cx="12" 
+                        cy="19" 
+                        r="2.0" 
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {openMenuId === conversation.id && (
+                    <div className="absolute right-0 top-full mt-1 w-32 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-[100]">
+                      <button
+                        onClick={(e) => handleDeleteClick(conversation.id, e)}
+                        className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md flex items-center gap-2 transition-colors"
+                      >
+                        <svg 
+                          width="14" 
+                          height="14" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="text-red-600"
+                        >
+                          <path 
+                            d="M3 6H5H21" 
+                            stroke="currentColor" 
+                            strokeWidth="2" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                          />
+                          <path 
+                            d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" 
+                            stroke="currentColor" 
+                            strokeWidth="2" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                          />
+                          <path 
+                            d="M10 11V17" 
+                            stroke="currentColor" 
+                            strokeWidth="2" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                          />
+                          <path 
+                            d="M14 11V17" 
+                            stroke="currentColor" 
+                            strokeWidth="2" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
             {conversations.length === 0 && (

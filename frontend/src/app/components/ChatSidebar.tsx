@@ -94,21 +94,63 @@ export default function ChatSidebar({
               <div className="text-xs font-medium text-[var(--foreground)] opacity-60 px-3 py-2">Today</div>
             )}
             {conversations.map((conversation) => (
-              <button
+              <div
                 key={conversation.id}
-                onClick={() => handleSelectConversation(conversation.id)}
-                className={`w-full p-3 text-left rounded-lg hover:bg-[var(--sidebar-hover)] transition-colors text-sm ${
+                className={`relative group w-full rounded-lg hover:bg-[var(--sidebar-hover)] transition-colors ${
                   activeConversationId === conversation.id ? 'bg-[var(--sidebar-active)]' : ''
                 }`}
               >
-                <div className="font-medium truncate">{conversation.title}</div>
-                <div className="text-xs opacity-60 truncate mt-1">
-                  {new Date(conversation.updated_at).toLocaleTimeString(undefined, {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </div>
-              </button>
+                <button
+                  onClick={() => handleSelectConversation(conversation.id)}
+                  className="w-full p-3 text-left text-sm group-hover:pr-10 transition-all duration-200"
+                >
+                  <div className="font-medium truncate">{conversation.title}</div>
+                  <div className="text-xs opacity-60 truncate mt-1">
+                    {new Date(conversation.updated_at).toLocaleTimeString(undefined, {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </div>
+                </button>
+                
+                {/* Three dots menu icon */}
+                <button
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 rounded-md opacity-0 group-hover:opacity-100 hover:bg-[var(--sidebar-hover)] transition-all duration-200 ease-in-out"
+                  aria-label="More options"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // TODO: Add menu functionality here
+                  }}
+                >
+                  <svg 
+                    width="16" 
+                    height="16" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="text-[var(--foreground)] opacity-90"
+                  >
+                    <circle 
+                      cx="12" 
+                      cy="12" 
+                      r="2.0" 
+                      fill="currentColor"
+                    />
+                    <circle 
+                      cx="12" 
+                      cy="5" 
+                      r="2.0" 
+                      fill="currentColor"
+                    />
+                    <circle 
+                      cx="12" 
+                      cy="19" 
+                      r="2.0" 
+                      fill="currentColor"
+                    />
+                  </svg>
+                </button>
+              </div>
             ))}
             {conversations.length === 0 && (
               <div className="p-4 text-center">

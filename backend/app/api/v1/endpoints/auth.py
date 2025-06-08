@@ -52,7 +52,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 # Simple rate limiting implementation (should be replaced with Redis in production)
 rate_limit_store = defaultdict(list)
-RATE_LIMIT_MAX_REQUESTS = 5  # Max requests per window
+RATE_LIMIT_MAX_REQUESTS = 20  # Increase from 5 to 20
 RATE_LIMIT_WINDOW = 60  # Window size in seconds
 
 def set_auth_cookie(response: Response, session_token: str):

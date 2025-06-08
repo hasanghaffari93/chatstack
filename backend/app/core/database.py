@@ -199,4 +199,22 @@ def clean_expired_code_verifiers() -> int:
     """Clean up expired PKCE code verifiers"""
     verifiers = get_code_verifiers_collection()
     result = verifiers.delete_many({"expires_at": {"$lt": time.time()}})
-    return result.deleted_count 
+    return result.deleted_count
+
+
+def save_user_system_prompt(user_id: str, system_prompt: str) -> bool:
+    """Save a user's system prompt"""
+    users = get_user_collection()
+    result = users.update_one(
+        {"id": user_id},
+        {"$set": {"system_prompt": system_prompt}}
+    )
+    return result.modified_count > 0
+
+
+def get_user_system_prompt(user_id: str) -> Optional[str]:
+    """Get a user's system prompt"""
+    user = get_user_by_id(user_id)
+    if user and "system_prompt" in user:
+        return user["system_prompt"]
+    return None 

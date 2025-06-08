@@ -3,9 +3,11 @@
  * Handles user input for sending messages
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../hooks';
 import ModelSelector from './ModelSelector';
+import SystemPromptModal from './SystemPromptModal';
+import { fetchSystemPrompt, saveSystemPrompt } from '../../services/chatService';
 
 interface ChatInputProps {
   onSendMessage: (message: string, model?: string) => void;
@@ -16,8 +18,36 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState('gpt-3.5-turbo');
   const [showLoginNotification, setShowLoginNotification] = useState(false);
+  const [isSystemPromptModalOpen, setIsSystemPromptModalOpen] = useState(false);
+  const [currentSystemPrompt, setCurrentSystemPrompt] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { isAuthenticated } = useAuth();
+
+  // Load system prompt when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadSystemPrompt();
+    }
+  }, [isAuthenticated]);
+
+  const loadSystemPrompt = async () => {
+    try {
+      const prompt = await fetchSystemPrompt();
+      setCurrentSystemPrompt(prompt);
+    } catch (error) {
+      console.error('Error loading system prompt:', error);
+    }
+  };
+
+  const handleSaveSystemPrompt = async (prompt: string) => {
+    try {
+      await saveSystemPrompt(prompt);
+      setCurrentSystemPrompt(prompt);
+    } catch (error) {
+      console.error('Error saving system prompt:', error);
+      throw error;
+    }
+  };
 
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
@@ -90,13 +120,37 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
             }}
           />
           
-          {/* Bottom row with model selector and send button - removed border line */}
+          {/* Bottom row with model selector, system prompt button, and send button */}
           <div className="flex items-center justify-between px-3 pb-3">
-            <ModelSelector
-              selectedModel={selectedModel}
-              onModelChange={handleModelChange}
-              disabled={isLoading || !isAuthenticated}
-            />
+            <div className="flex items-center gap-2">
+              <ModelSelector
+                selectedModel={selectedModel}
+                onModelChange={handleModelChange}
+                disabled={isLoading || !isAuthenticated}
+              />
+              
+              <button
+                type="button"
+                onClick={() => setIsSystemPromptModalOpen(true)}
+                disabled={isLoading || !isAuthenticated}
+                className="flex items-center gap-1.5 px-2 py-1.5 text-xs text-[var(--foreground)] bg-[var(--input-bg)] border border-[var(--input-border)] rounded-md hover:bg-[var(--sidebar-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={currentSystemPrompt ? "System prompt is set" : "Set system prompt"}
+              >
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14,2 14,8 20,8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10,9 9,9 8,9"/>
+                </svg>
+                <span className="truncate max-w-[80px]">
+                  System Prompt
+                </span>
+                {currentSystemPrompt && (
+                  <div className="w-2 h-2 bg-[var(--primary)] rounded-full" title="System prompt is set" />
+                )}
+              </button>
+            </div>
             
             <button
               type="submit"
@@ -111,6 +165,14 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
           </div>
         </div>
       </form>
+
+      {/* System Prompt Modal */}
+      <SystemPromptModal
+        isOpen={isSystemPromptModalOpen}
+        onClose={() => setIsSystemPromptModalOpen(false)}
+        onSave={handleSaveSystemPrompt}
+        currentPrompt={currentSystemPrompt}
+      />
     </div>
   );
 }

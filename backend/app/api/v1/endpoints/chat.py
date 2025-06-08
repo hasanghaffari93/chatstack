@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 from app.schemas.chat import ChatMessage, ConversationId, MessageResponse
 from app.core.config import get_openai_client, AVAILABLE_MODELS
 from app.repositories.conversation_repository import ConversationRepository
+from app.core.database import get_user_system_prompt
 from typing import Dict, List, Optional
 from datetime import datetime
 import uuid, os, json
@@ -137,8 +138,16 @@ async def chat(message: ChatMessage, user = Depends(get_current_user_from_cookie
         updated_conversation = conversation_repo.get_conversation_by_id(conv_id, user_id)
         conversation_history = updated_conversation.get("messages", [])[-10:]
         
+        # Get user's system prompt
+        user_system_prompt = get_user_system_prompt(user_id)
+        
         # Convert the messages to LangChain format
         langchain_messages = []
+        
+        # Add system prompt if it exists
+        if user_system_prompt:
+            langchain_messages.append(SystemMessage(content=user_system_prompt))
+        
         for msg in conversation_history:
             if msg["role"] == "system":
                 langchain_messages.append(SystemMessage(content=msg["content"]))
@@ -222,12 +231,21 @@ async def chat_stream(message: ChatMessage, user = Depends(get_current_user_from
             updated_conversation = conversation_repo.get_conversation_by_id(conv_id, user_id)
             conversation_history = updated_conversation.get("messages", [])[-10:]
             
+            # Get user's system prompt
+            user_system_prompt = get_user_system_prompt(user_id)
+            
             # Convert the messages to LangChain format
             langchain_messages = []
+            
+            # Add system prompt if it exists
+            if user_system_prompt:
+                langchain_messages.append(SystemMessage(content=user_system_prompt))
+            
             for msg in conversation_history:
-                if msg["role"] == "system":
-                    langchain_messages.append(SystemMessage(content=msg["content"]))
-                elif msg["role"] == "user":
+                # if msg["role"] == "system":
+                #     langchain_messages.append(SystemMessage(content=msg["content"]))
+                # elif msg["role"] == "user":
+                if msg["role"] == "user":
                     langchain_messages.append(HumanMessage(content=msg["content"]))
                 elif msg["role"] == "assistant":
                     langchain_messages.append(AIMessage(content=msg["content"]))

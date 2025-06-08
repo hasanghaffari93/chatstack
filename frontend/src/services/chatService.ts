@@ -269,3 +269,72 @@ export async function sendMessageStream(
     onError(error instanceof Error ? error.message : 'Unknown error occurred');
   }
 }
+
+/**
+ * Fetches the current user's system prompt
+ */
+export async function fetchSystemPrompt(): Promise<string> {
+  try {
+    const url = `${API_BASE_URL}/system-prompt`;
+    
+    const response = await fetch(url, defaultFetchOptions);
+    
+    // If user is not authenticated, return empty string
+    if (response.status === 401) {
+      return '';
+    }
+    
+    // Handle 404 - This means the user has no system prompt set
+    if (response.status === 404) {
+      return '';
+    }
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch system prompt: ${errorText || response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data.system_prompt || '';
+  } catch (_error) {
+    return '';
+  }
+}
+
+/**
+ * Saves the user's system prompt
+ */
+export async function saveSystemPrompt(prompt: string): Promise<void> {
+  try {
+    const url = `${API_BASE_URL}/system-prompt`;
+    
+    const response = await fetch(url, {
+      ...defaultFetchOptions,
+      method: 'POST',
+      body: JSON.stringify({ system_prompt: prompt }),
+    });
+
+    if (response.status === 401) {
+      throw new Error('You must be logged in to save system prompt');
+    }
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      
+      let errorDetail = 'Failed to save system prompt';
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.detail) {
+          errorDetail = errorData.detail;
+        }
+      } catch {
+        errorDetail = errorText || response.statusText;
+      }
+      
+      throw new Error(errorDetail);
+    }
+  } catch (error) {
+    throw error;
+  }
+}

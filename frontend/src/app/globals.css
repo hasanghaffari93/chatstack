@@ -79,6 +79,124 @@ body {
   animation: fadeIn 0.3s ease-out forwards;
 }
 
+/* RTL Language Support */
+.rtl-content {
+  unicode-bidi: embed;
+}
+
+.ltr-content {
+  unicode-bidi: normal;
+}
+
+/* RTL-specific font loading */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap');
+
+/* Persian/Farsi font - Vazirmatn is a popular Persian font */
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* RTL text styling */
+.rtl-text {
+  direction: rtl;
+  text-align: right;
+}
+
+.ltr-text {
+  direction: ltr;
+  text-align: left;
+}
+
+/* Message content specific RTL styling */
+.message-content {
+  line-height: 1.6;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.message-content[dir="rtl"] {
+  text-align: right;
+}
+
+.message-content[dir="ltr"] {
+  text-align: left;
+}
+
+/* RTL support for lists */
+.message-content[dir="rtl"] ul,
+.message-content[dir="rtl"] ol {
+  padding-right: 1.5rem;
+  padding-left: 0;
+}
+
+.message-content[dir="ltr"] ul,
+.message-content[dir="ltr"] ol {
+  padding-left: 1.5rem;
+  padding-right: 0;
+}
+
+/* RTL support for blockquotes */
+.message-content[dir="rtl"] blockquote {
+  border-right: 4px solid #e5e7eb;
+  border-left: none;
+  padding-right: 1rem;
+  padding-left: 0;
+  margin-right: 0;
+  margin-left: 1rem;
+}
+
+.message-content[dir="ltr"] blockquote {
+  border-left: 4px solid #e5e7eb;
+  border-right: none;
+  padding-left: 1rem;
+  padding-right: 0;
+  margin-left: 0;
+  margin-right: 1rem;
+}
+
+/* Ensure proper text rendering for mixed content */
+.message-content * {
+  unicode-bidi: embed;
+}
+
+/* Code blocks should remain LTR regardless of surrounding text */
+.message-content pre,
+.message-content code {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: embed;
+}
+
 /* Sidebar transition */
 .sidebar-container {
   transition: width var(--transition-speed) var(--transition-easing);

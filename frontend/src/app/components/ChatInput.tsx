@@ -1,6 +1,7 @@
 /**
  * ChatInput Component
  * Handles user input for sending messages
+ * Supports RTL languages like Persian, Arabic, Hebrew, and Urdu
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -8,6 +9,7 @@ import { useAuth } from '../../hooks';
 import ModelSelector from './ModelSelector';
 import SystemPromptModal from './SystemPromptModal';
 import { fetchSystemPrompt, saveSystemPrompt } from '../../services/chatService';
+import { useRTLTextInfo } from '../../components/RTLText';
 
 interface ChatInputProps {
   onSendMessage: (message: string, model?: string) => void;
@@ -22,6 +24,9 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
   const [currentSystemPrompt, setCurrentSystemPrompt] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { isAuthenticated } = useAuth();
+
+  // RTL detection for input text
+  const rtlInfo = useRTLTextInfo(input);
 
   // Load system prompt when user is authenticated
   useEffect(() => {
@@ -112,11 +117,15 @@ export default function ChatInput({ onSendMessage, isLoading }: ChatInputProps) 
             className="w-full p-3 bg-transparent focus:outline-none text-[var(--foreground)] placeholder-opacity-60 resize-none min-h-[44px] max-h-[200px] overflow-y-hidden text-sm transition-all duration-300 ease-in-out"
             disabled={isLoading}
             rows={1}
+            dir={rtlInfo.direction}
             style={{
               height: '44px',
               minHeight: '44px',
               maxHeight: '200px',
-              overflowY: input.length > 0 ? 'auto' : 'hidden'
+              overflowY: input.length > 0 ? 'auto' : 'hidden',
+              textAlign: rtlInfo.isRTL ? 'right' : 'left',
+              fontFamily: rtlInfo.fontFamily || undefined,
+              unicodeBidi: rtlInfo.hasRTL ? 'embed' : undefined,
             }}
           />
           

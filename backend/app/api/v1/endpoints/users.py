@@ -1,7 +1,5 @@
 # Endpoints for user management
 from fastapi import APIRouter, HTTPException, Depends, status
-from pydantic import BaseModel
-from typing import Optional
 from app.api.v1.endpoints.auth import get_current_user_from_cookie
 from app.schemas.user import UserInfo
 

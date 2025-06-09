@@ -15,18 +15,3 @@ class ConversationId(BaseModel):
 class MessageResponse(BaseModel):
     response: str
     conversation_id: str
-
-class ConversationMetadata(BaseModel):
-    id: str
-    title: str
-    created_at: datetime
-    updated_at: datetime
-    user_id: str
-
-class ConversationResponse(BaseModel):
-    id: str
-    title: str
-    created_at: datetime
-    updated_at: datetime
-    messages: List[Dict[str, Any]]
-    user_id: str

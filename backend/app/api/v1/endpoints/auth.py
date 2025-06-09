@@ -18,6 +18,8 @@ import pathlib
 import hashlib
 import base64
 from app.repositories import UserRepository, OAuthRepository
+from app.schemas.auth import TokenRequest, TokenData
+from app.schemas.user import UserInfo
 
 # Load environment variables
 load_dotenv()
@@ -60,21 +62,6 @@ def set_auth_cookie(response: Response, session_token: str):
         path="/",     # Make sure cookie is sent for all paths
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
-
-class TokenRequest(BaseModel):
-    code: str
-    redirect_uri: Optional[str] = None
-    state: str
-
-class TokenData(BaseModel):
-    access_token: str
-    token_type: str
-
-class UserInfo(BaseModel):
-    id: str
-    email: str
-    name: str
-    picture: Optional[str] = None
 
 # PKCE Helper Functions
 def generate_code_verifier(length=128):

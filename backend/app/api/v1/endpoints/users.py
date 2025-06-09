@@ -3,14 +3,9 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel
 from typing import Optional
 from app.api.v1.endpoints.auth import get_current_user_from_cookie
+from app.schemas.user import UserInfo
 
 router = APIRouter()
-
-class UserInfo(BaseModel):
-    id: str
-    email: str
-    name: str
-    picture: Optional[str] = None
 
 @router.get("/me", response_model=UserInfo)
 async def get_current_user(user: dict = Depends(get_current_user_from_cookie)):

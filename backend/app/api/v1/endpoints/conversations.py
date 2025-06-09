@@ -64,18 +64,3 @@ async def get_conversation_by_id(conversation_id: str, user = Depends(get_curren
             "user_id": conversation.get("user_id")
         }
     }
-
-@router.delete("/chat")
-async def clear_conversation(conv: ConversationId, user = Depends(get_current_user_from_cookie)):
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    user_id = user.get("sub")
-    if not conv.conversation_id:
-        raise HTTPException(status_code=400, detail="Conversation ID is required")
-    
-    success = conversation_repo.delete_conversation(conv.conversation_id, user_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    return {"status": "success"} 

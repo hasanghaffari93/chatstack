@@ -17,25 +17,16 @@ from collections import defaultdict
 import pathlib
 import hashlib
 import base64
-from app.core.database import (
-    get_user_by_id,
-    get_user_by_email, 
-    create_or_update_user,
-    save_user_refresh_token,
-    get_user_refresh_token,
-    save_oauth_state,
-    get_oauth_state,
-    delete_oauth_state,
-    clean_expired_oauth_states,
-    save_code_verifier,
-    get_code_verifier,
-    delete_code_verifier
-)
+from app.repositories import UserRepository, OAuthRepository
 
 # Load environment variables
 load_dotenv()
 
 router = APIRouter()
+
+# Initialize repositories
+user_repo = UserRepository()
+oauth_repo = OAuthRepository()
 
 # Get OAuth credentials from environment variables
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
@@ -175,13 +166,13 @@ async def google_login(response: Response, request: Request, _: bool = Depends(c
     
     # Store state with creation time (for expiration)
     state_data = {"created_at": time.time()}
-    save_oauth_state(state, state_data)
+    oauth_repo.save_oauth_state(state, state_data)
     
     # Store code_verifier associated with state
-    save_code_verifier(state, code_verifier)
+    oauth_repo.save_code_verifier(state, code_verifier)
     
     # Periodically clean up expired states
-    clean_expired_oauth_states()
+    oauth_repo.clean_expired_oauth_states()
     
     # Create auth URL with state parameter and PKCE code_challenge
     auth_url = (
@@ -207,7 +198,7 @@ async def google_callback_endpoint(code: str, state: str, request: Request, resp
         print(f"Received state: {state}")
         
         # Get state from database
-        state_data = get_oauth_state(state)
+        state_data = oauth_repo.get_oauth_state(state)
         if not state_data:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -215,7 +206,7 @@ async def google_callback_endpoint(code: str, state: str, request: Request, resp
             )
         
         # Get code_verifier for this state
-        code_verifier = get_code_verifier(state)
+        code_verifier = oauth_repo.get_code_verifier(state)
         if not code_verifier:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -240,8 +231,8 @@ async def google_callback_endpoint(code: str, state: str, request: Request, resp
             error_detail = f"Failed to exchange code for token: {token_response.text}"
             print(error_detail)
             # Clean up used state and code_verifier
-            delete_oauth_state(state)
-            delete_code_verifier(state)
+            oauth_repo.delete_oauth_state(state)
+            oauth_repo.delete_code_verifier(state)
             # Redirect to frontend with error
             redirect_response = RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
             return redirect_response
@@ -278,8 +269,8 @@ async def google_callback_endpoint(code: str, state: str, request: Request, resp
                 error_detail = f"Error decoding ID token: {str(e)}"
                 print(error_detail)
                 # Clean up used state and code_verifier
-                delete_oauth_state(state)
-                delete_code_verifier(state)
+                oauth_repo.delete_oauth_state(state)
+                oauth_repo.delete_code_verifier(state)
                 redirect_response = RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
                 return redirect_response
         else:
@@ -300,8 +291,8 @@ async def google_callback_endpoint(code: str, state: str, request: Request, resp
                 error_detail = f"Invalid ID token: {str(e)}"
                 print(error_detail)
                 # Clean up used state and code_verifier
-                delete_oauth_state(state)
-                delete_code_verifier(state)
+                oauth_repo.delete_oauth_state(state)
+                oauth_repo.delete_code_verifier(state)
                 redirect_response = RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
                 return redirect_response
             
@@ -316,8 +307,8 @@ async def google_callback_endpoint(code: str, state: str, request: Request, resp
             error_detail = f"Failed to get user info: {user_info_response.text}"
             print(error_detail)
             # Clean up used state and code_verifier
-            delete_oauth_state(state)
-            delete_code_verifier(state)
+            oauth_repo.delete_oauth_state(state)
+            oauth_repo.delete_code_verifier(state)
             redirect_response = RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
             return redirect_response
             
@@ -329,8 +320,8 @@ async def google_callback_endpoint(code: str, state: str, request: Request, resp
             error_detail = f"User ID mismatch: {user_id} vs {user_data.get('sub')}"
             print(error_detail)
             # Clean up used state and code_verifier
-            delete_oauth_state(state)
-            delete_code_verifier(state)
+            oauth_repo.delete_oauth_state(state)
+            oauth_repo.delete_code_verifier(state)
             redirect_response = RedirectResponse(url=f"{FRONTEND_URL}/login?error={error_detail}")
             return redirect_response
             
@@ -351,11 +342,11 @@ async def google_callback_endpoint(code: str, state: str, request: Request, resp
         }
         
         # Create or update user in the database
-        create_or_update_user(user_data_dict)
+        user_repo.create_or_update_user(user_data_dict)
         
         # If we have a refresh token, store it in the database
         if refresh_token:
-            save_user_refresh_token(user_info.id, refresh_token)
+            user_repo.save_user_refresh_token(user_info.id, refresh_token)
         
         # Create a session token (without the refresh token)
         session_data = {
@@ -368,8 +359,8 @@ async def google_callback_endpoint(code: str, state: str, request: Request, resp
         session_token = create_access_token(session_data)
         
         # Clean up used state and code_verifier
-        delete_oauth_state(state)
-        delete_code_verifier(state)
+        oauth_repo.delete_oauth_state(state)
+        oauth_repo.delete_code_verifier(state)
         
         print(f"Authentication successful for user: {user_info.email}")
 
@@ -499,7 +490,7 @@ async def refresh_token(request: Request, response: Response, user: dict = Depen
         )
     
     # Get refresh token from database
-    refresh_token = get_user_refresh_token(user_id)
+    refresh_token = user_repo.get_user_refresh_token(user_id)
     if not refresh_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 from app.schemas.chat import ChatMessage, ConversationId, MessageResponse
 from app.core.config import get_openai_client, AVAILABLE_MODELS
 from app.repositories.conversation_repository import ConversationRepository
-from app.core.database import get_user_system_prompt
+from app.repositories import UserRepository
 from typing import Dict, List, Optional
 from datetime import datetime
 import uuid, os, json
@@ -16,6 +16,7 @@ from langchain_core.output_parsers import StrOutputParser
 
 router = APIRouter()
 conversation_repo = ConversationRepository()
+user_repo = UserRepository()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 @router.get("/models")
@@ -139,7 +140,7 @@ async def chat(message: ChatMessage, user = Depends(get_current_user_from_cookie
         conversation_history = updated_conversation.get("messages", [])[-10:]
         
         # Get user's system prompt
-        user_system_prompt = get_user_system_prompt(user_id)
+        user_system_prompt = user_repo.get_user_system_prompt(user_id)
         
         # Convert the messages to LangChain format
         langchain_messages = []
@@ -232,7 +233,7 @@ async def chat_stream(message: ChatMessage, user = Depends(get_current_user_from
             conversation_history = updated_conversation.get("messages", [])[-10:]
             
             # Get user's system prompt
-            user_system_prompt = get_user_system_prompt(user_id)
+            user_system_prompt = user_repo.get_user_system_prompt(user_id)
             
             # Convert the messages to LangChain format
             langchain_messages = []

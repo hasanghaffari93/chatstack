@@ -3,7 +3,6 @@ from datetime import datetime
 import uuid
 from pymongo.collection import Collection
 from app.core.database import get_database
-from app.models.conversation import Conversation
 
 class ConversationRepository:
     def __init__(self):

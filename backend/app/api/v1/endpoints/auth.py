@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Cookie
-from fastapi.security import OAuth2PasswordBearer
 from fastapi.responses import RedirectResponse
 from typing import Optional
 from app.services import AuthService
@@ -10,8 +9,6 @@ router = APIRouter()
 
 # Initialize the auth service
 auth_service = AuthService()
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 # Rate limiting dependency
 async def check_rate_limit(request: Request):
@@ -29,6 +26,15 @@ async def check_rate_limit(request: Request):
 def get_current_user_from_cookie(session_token: str = Cookie(None)):
     """Get the current user from the session cookie"""
     return auth_service.get_current_user_from_cookie(session_token)
+
+def get_current_user_required(user: dict = Depends(get_current_user_from_cookie)):
+    """Get the current user from cookie and require authentication"""
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+    return user
 
 @router.get("/google-login")
 async def google_login(response: Response, request: Request, _: bool = Depends(check_rate_limit)):
